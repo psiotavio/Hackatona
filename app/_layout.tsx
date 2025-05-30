@@ -1,12 +1,12 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme, ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { StatusBar } from 'react-native';
 import 'react-native-reanimated';
-
-import { useColorScheme } from '@/components/useColorScheme';
+import { ThemeProvider, useTheme } from '@/src/contexts/ThemeContext';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -20,6 +20,43 @@ export const unstable_settings = {
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
+
+function RootLayoutNav() {
+  const { currentTheme } = useTheme();
+  const navigationTheme = currentTheme === 'dark' ? DarkTheme : DefaultTheme;
+
+  return (
+    <NavigationThemeProvider value={navigationTheme}>
+      <StatusBar
+        barStyle={currentTheme === 'dark' ? 'light-content' : 'dark-content'}
+        backgroundColor={navigationTheme.colors.background}
+      />
+      <Stack
+        screenOptions={{
+          headerStyle: {
+            backgroundColor: navigationTheme.colors.background,
+          },
+          headerTintColor: navigationTheme.colors.text,
+          headerTitleStyle: {
+            color: navigationTheme.colors.text,
+          },
+        }}
+      >
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen 
+          name="modal" 
+          options={{ 
+            presentation: 'modal',
+            headerStyle: {
+              backgroundColor: navigationTheme.colors.background,
+            },
+            headerTintColor: navigationTheme.colors.text,
+          }} 
+        />
+      </Stack>
+    </NavigationThemeProvider>
+  );
+}
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
@@ -42,18 +79,9 @@ export default function RootLayout() {
     return null;
   }
 
-  return <RootLayoutNav />;
-}
-
-function RootLayoutNav() {
-  const colorScheme = useColorScheme();
-
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-      </Stack>
+    <ThemeProvider>
+      <RootLayoutNav />
     </ThemeProvider>
   );
 }
