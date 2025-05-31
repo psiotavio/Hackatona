@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -15,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Função para gerar avatar com as iniciais do nome
 const getAvatarUri = (name) => {
@@ -41,7 +42,8 @@ const SOLICITACOES_INICIAIS = [
     avatar: getAvatarUri('Carlos Silva'),
     dataSolicitacao: '12/06/2023',
     empresa: 'Tech Solutions',
-    status: 'pendente',
+    status: 'recusado',
+    dataRecusa: '13/06/2023',
   },
   {
     id: '2',
@@ -91,6 +93,7 @@ export default function AdminScreen() {
   const [usuarioSelecionado, setUsuarioSelecionado] = useState(null);
   const [tipoUsuario, setTipoUsuario] = useState('funcionario');
   const [projetosSelecionados, setProjetosSelecionados] = useState({});
+  const [modoEdicao, setModoEdicao] = useState(false);
   const router = useRouter();
 
   const handleBack = () => {
@@ -98,7 +101,7 @@ export default function AdminScreen() {
   };
 
   const verificarStatus = () => {
-    router.push('/pendente');
+    router.push('/register');
   };
 
   // Função para lidar com a aprovação de um usuário
@@ -106,7 +109,122 @@ export default function AdminScreen() {
     setUsuarioSelecionado(usuario);
     setTipoUsuario('funcionario');
     setProjetosSelecionados({});
+    setModoEdicao(false);
     setModalVisible(true);
+  };
+
+  // Função para editar um usuário já aprovado
+  const handleEditar = (usuario) => {
+    setUsuarioSelecionado(usuario);
+    setTipoUsuario(usuario.tipoUsuario || 'funcionario');
+    
+    // Inicializa os projetos selecionados com base nos projetos do usuário
+    const projetosSelecionadosObj = {};
+    if (usuario.projetos) {
+      usuario.projetos.forEach(projeto => {
+        projetosSelecionadosObj[projeto.id] = true;
+      });
+    }
+    
+    setProjetosSelecionados(projetosSelecionadosObj);
+    setModoEdicao(true);
+    setModalVisible(true);
+  };
+
+  // Função para remover um usuário aprovado
+  const handleRemover = (usuario) => {
+    Alert.alert(
+      'Remover usuário',
+      `Tem certeza que deseja remover ${usuario.nome} do sistema?`,
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+        {
+          text: 'Remover',
+          style: 'destructive',
+          onPress: () => {
+            // Em vez de excluir, alteramos o status para "removido"
+            setSolicitacoes(prev => 
+              prev.map(s => 
+                s.id === usuario.id 
+                  ? { 
+                      ...s, 
+                      status: 'removido',
+                      dataRemocao: new Date().toLocaleDateString()
+                    } 
+                  : s
+              )
+            );
+            Alert.alert('Usuário removido', `${usuario.nome} foi removido do sistema.`);
+          },
+        },
+      ]
+    );
+  };
+
+  // Função para reabilitar um usuário removido
+  const handleReabilitar = (usuario) => {
+    Alert.alert(
+      'Reabilitar usuário',
+      `Deseja reabilitar ${usuario.nome} no sistema?`,
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+        {
+          text: 'Reabilitar',
+          onPress: () => {
+            // Alteramos o status de volta para "aprovado"
+            setSolicitacoes(prev => 
+              prev.map(s => 
+                s.id === usuario.id 
+                  ? { 
+                      ...s, 
+                      status: 'aprovado',
+                      dataAtualizacao: new Date().toLocaleDateString()
+                    } 
+                  : s
+              )
+            );
+            Alert.alert('Usuário reabilitado', `${usuario.nome} foi reabilitado no sistema.`);
+          },
+        },
+      ]
+    );
+  };
+
+  // Função para reabilitar um usuário recusado
+  const handleReabilitarRecusado = (usuario) => {
+    Alert.alert(
+      'Reabilitar solicitação',
+      `Deseja reavaliar a solicitação de ${usuario.nome}?`,
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+        {
+          text: 'Reavaliar',
+          onPress: () => {
+            // Alteramos o status de volta para "pendente"
+            setSolicitacoes(prev => 
+              prev.map(s => 
+                s.id === usuario.id 
+                  ? { 
+                      ...s, 
+                      status: 'pendente'
+                    } 
+                  : s
+              )
+            );
+            Alert.alert('Solicitação reativada', `A solicitação de ${usuario.nome} foi reativada para reavaliação.`);
+          },
+        },
+      ]
+    );
   };
 
   // Função para lidar com a recusa de um usuário
@@ -126,7 +244,11 @@ export default function AdminScreen() {
             setSolicitacoes(prev => 
               prev.map(s => 
                 s.id === usuario.id 
-                  ? { ...s, status: 'recusado' } 
+                  ? { 
+                      ...s, 
+                      status: 'recusado',
+                      dataRecusa: new Date().toLocaleDateString()
+                    } 
                   : s
               )
             );
@@ -137,7 +259,15 @@ export default function AdminScreen() {
     );
   };
 
-  // Função para confirmar a aprovação de um usuário
+  // Função para lidar com a seleção de um projeto
+  const toggleProjeto = (projetoId) => {
+    setProjetosSelecionados(prev => ({
+      ...prev,
+      [projetoId]: !prev[projetoId]
+    }));
+  };
+
+  // Função para confirmar a aprovação ou edição de um usuário
   const confirmarAprovacao = () => {
     if (!usuarioSelecionado) return;
 
@@ -149,7 +279,7 @@ export default function AdminScreen() {
       return;
     }
 
-    // Atualiza o status da solicitação para 'aprovado'
+    // Atualiza o status da solicitação para 'aprovado' ou atualiza os dados do usuário
     setSolicitacoes(prev => 
       prev.map(s => 
         s.id === usuarioSelecionado.id 
@@ -159,7 +289,8 @@ export default function AdminScreen() {
               tipoUsuario, 
               projetos: projetoIds.map(id => 
                 PROJETOS.find(p => p.id === id)
-              )
+              ),
+              dataAtualizacao: new Date().toLocaleDateString()
             } 
           : s
       )
@@ -172,21 +303,29 @@ export default function AdminScreen() {
       'admin': 'Administrador'
     };
 
+    const mensagem = modoEdicao 
+      ? `As permissões de ${usuarioSelecionado.nome} foram atualizadas para ${tipoTexto[tipoUsuario]}.`
+      : `${usuarioSelecionado.nome} foi aprovado como ${tipoTexto[tipoUsuario]} e vinculado a ${projetoIds.length} projeto(s).`;
+
     Alert.alert(
-      'Solicitação aprovada', 
-      `${usuarioSelecionado.nome} foi aprovado como ${tipoTexto[tipoUsuario]} e vinculado a ${projetoIds.length} projeto(s).`
+      modoEdicao ? 'Usuário atualizado' : 'Solicitação aprovada', 
+      mensagem
     );
 
     // Fecha o modal
     setModalVisible(false);
   };
 
-  // Função para lidar com a seleção de um projeto
-  const toggleProjeto = (projetoId) => {
-    setProjetosSelecionados(prev => ({
-      ...prev,
-      [projetoId]: !prev[projetoId]
-    }));
+  const getDisplayDate = (item) => {
+    if (item.status === 'aprovado') {
+      return `Aprovado em: ${item.dataAtualizacao || item.dataSolicitacao}`;
+    } else if (item.status === 'removido') {
+      return `Removido em: ${item.dataRemocao || 'Data desconhecida'}`;
+    } else if (item.status === 'recusado') {
+      return `Recusado em: ${item.dataRecusa || item.dataSolicitacao}`;
+    } else {
+      return `Solicitação: ${item.dataSolicitacao}`;
+    }
   };
 
   // Renderiza um item da lista de solicitações
@@ -194,7 +333,8 @@ export default function AdminScreen() {
     <View style={[
       styles.solicitacaoContainer,
       item.status === 'aprovado' && styles.solicitacaoAprovada,
-      item.status === 'recusado' && styles.solicitacaoRecusada
+      item.status === 'recusado' && styles.solicitacaoRecusada,
+      item.status === 'removido' && styles.solicitacaoRemovida
     ]}>
       <View style={styles.solicitacaoHeader}>
         <Image source={item.avatar} style={styles.avatar} />
@@ -207,7 +347,7 @@ export default function AdminScreen() {
       
       <View style={styles.solicitacaoDetalhes}>
         <Text style={styles.solicitacaoEmail}>{item.email}</Text>
-        <Text style={styles.solicitacaoData}>Solicitação: {item.dataSolicitacao}</Text>
+        <Text style={styles.solicitacaoData}>{getDisplayDate(item)}</Text>
         
         {item.status === 'pendente' && (
           <View style={styles.acaoContainer}>
@@ -230,23 +370,74 @@ export default function AdminScreen() {
         )}
         
         {item.status === 'aprovado' && (
-          <View style={styles.statusContainer}>
-            <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
-            <Text style={styles.statusAprovado}>
-              Aprovado como {item.tipoUsuario === 'funcionario' ? 'Funcionário' : 
-                item.tipoUsuario === 'lider' ? 'Líder de Projeto' : 'Administrador'}
-            </Text>
-          </View>
+          <>
+            <View style={styles.statusContainer}>
+              <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
+              <Text style={styles.statusAprovado}>
+                Aprovado como {item.tipoUsuario === 'funcionario' ? 'Funcionário' : 
+                  item.tipoUsuario === 'lider' ? 'Líder de Projeto' : 'Administrador'}
+              </Text>
+            </View>
+            
+            <View style={styles.acaoContainer}>
+              <TouchableOpacity 
+                style={styles.botaoEditar}
+                onPress={() => handleEditar(item)}
+              >
+                <Ionicons name="create-outline" size={22} color="#fff" />
+                <Text style={styles.botaoTexto}>Editar</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.botaoRemover}
+                onPress={() => handleRemover(item)}
+              >
+                <Ionicons name="trash-outline" size={22} color="#fff" />
+                <Text style={styles.botaoTexto}>Remover</Text>
+              </TouchableOpacity>
+            </View>
+          </>
         )}
         
         {item.status === 'recusado' && (
-          <View style={styles.statusContainer}>
-            <Ionicons name="close-circle" size={20} color="#F44336" />
-            <Text style={styles.statusRecusado}>Recusado</Text>
-          </View>
+          <>
+            <View style={styles.statusContainer}>
+              <Ionicons name="close-circle" size={20} color="#F44336" />
+              <Text style={styles.statusRecusado}>Recusado</Text>
+            </View>
+            
+            <View style={styles.acaoContainer}>
+              <TouchableOpacity 
+                style={styles.botaoReabilitar}
+                onPress={() => handleReabilitarRecusado(item)}
+              >
+                <Ionicons name="refresh-circle-outline" size={22} color="#fff" />
+                <Text style={styles.botaoTexto}>Reavaliar</Text>
+              </TouchableOpacity>
+            </View>
+          </>
         )}
         
-        {item.status === 'aprovado' && item.projetos && (
+        {item.status === 'removido' && (
+          <>
+            <View style={styles.statusContainer}>
+              <Ionicons name="ban" size={20} color="#FF9800" />
+              <Text style={styles.statusRemovido}>Removido</Text>
+            </View>
+            
+            <View style={styles.acaoContainer}>
+              <TouchableOpacity 
+                style={styles.botaoReabilitar}
+                onPress={() => handleReabilitar(item)}
+              >
+                <Ionicons name="refresh-circle-outline" size={22} color="#fff" />
+                <Text style={styles.botaoTexto}>Reabilitar</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
+        
+        {(item.status === 'aprovado' || item.status === 'removido') && item.projetos && (
           <View style={styles.projetosContainer}>
             <Text style={styles.projetosTitulo}>Projetos vinculados:</Text>
             {item.projetos.map(projeto => (
@@ -263,6 +454,7 @@ export default function AdminScreen() {
     const pendentes = solicitacoes.filter(s => s.status === 'pendente');
     const aprovados = solicitacoes.filter(s => s.status === 'aprovado');
     const recusados = solicitacoes.filter(s => s.status === 'recusado');
+    const removidos = solicitacoes.filter(s => s.status === 'removido');
 
     return (
       <>
@@ -295,6 +487,18 @@ export default function AdminScreen() {
             <Text style={styles.secaoTitulo}>Recusados ({recusados.length})</Text>
             <FlatList
               data={recusados}
+              renderItem={renderSolicitacao}
+              keyExtractor={item => item.id}
+              scrollEnabled={false}
+            />
+          </>
+        )}
+        
+        {removidos.length > 0 && (
+          <>
+            <Text style={styles.secaoTitulo}>Removidos ({removidos.length})</Text>
+            <FlatList
+              data={removidos}
               renderItem={renderSolicitacao}
               keyExtractor={item => item.id}
               scrollEnabled={false}
@@ -335,7 +539,9 @@ export default function AdminScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Aprovar Solicitação</Text>
+              <Text style={styles.modalTitle}>
+                {modoEdicao ? 'Editar Usuário' : 'Aprovar Solicitação'}
+              </Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
                 <Ionicons name="close" size={24} color="#333" />
               </TouchableOpacity>
@@ -439,7 +645,9 @@ export default function AdminScreen() {
               style={styles.botaoConfirmar}
               onPress={confirmarAprovacao}
             >
-              <Text style={styles.botaoConfirmarTexto}>Confirmar Aprovação</Text>
+              <Text style={styles.botaoConfirmarTexto}>
+                {modoEdicao ? 'Salvar Alterações' : 'Confirmar Aprovação'}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -511,6 +719,10 @@ const styles = StyleSheet.create({
   solicitacaoRecusada: {
     borderLeftWidth: 4,
     borderLeftColor: '#F44336',
+  },
+  solicitacaoRemovida: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#FF9800',
   },
   solicitacaoHeader: {
     flexDirection: 'row',
@@ -599,6 +811,11 @@ const styles = StyleSheet.create({
   },
   statusRecusado: {
     color: '#F44336',
+    marginLeft: 8,
+    fontWeight: '500',
+  },
+  statusRemovido: {
+    color: '#FF9800',
     marginLeft: 8,
     fontWeight: '500',
   },
@@ -752,6 +969,47 @@ const styles = StyleSheet.create({
   verificarStatusText: {
     color: '#fff',
     fontWeight: 'bold',
+    marginLeft: 8,
+  },
+  botaoEditar: {
+    backgroundColor: '#2196F3',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+    justifyContent: 'center',
+  },
+  botaoRemover: {
+    backgroundColor: '#F44336',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginLeft: 8,
+    justifyContent: 'center',
+  },
+  botaoReabilitar: {
+    backgroundColor: '#FF9800',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  dataRecusa: {
+    color: '#777',
     marginLeft: 8,
   },
 }); 
