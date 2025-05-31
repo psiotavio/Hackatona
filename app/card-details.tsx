@@ -25,18 +25,22 @@ const getAvatarUri = (name: string) => {
 
 interface Feedback {
   id: string;
-  author: {
+  author?: {
     name: string;
     avatar: any;
   };
+  userName?: string | null;
+  isAnonimo?: boolean;
   content: string;
   likes: number;
   isLiked: boolean;
+  userId?: string | null;
+  createdAt?: Date;
 }
 
 interface Post {
   id: string;
-  author: {
+  author?: {
     name: string;
     avatar: any;
   };
@@ -48,8 +52,13 @@ interface Post {
   isLiked: boolean;
   isFavorite: boolean;
   comments: number;
-  topFeedback: Feedback;
+  topFeedback?: Feedback;
   allFeedbacks: Feedback[];
+  userName?: string | null;
+  userId?: string | null;
+  empresaId?: string;
+  nomeEmpresa?: string;
+  createdAt?: Date;
 }
 
 // Dados fictícios para os cards de time
@@ -192,6 +201,26 @@ export default function CardDetailsScreen() {
     if (cardData) {
       try {
         const parsedData = JSON.parse(cardData as string);
+        
+        // Certificar-se de que todos os feedbacks tenham as propriedades necessárias
+        if (parsedData.allFeedbacks) {
+          parsedData.allFeedbacks = parsedData.allFeedbacks.map((feedback: any) => {
+            // Garantir que cada feedback tenha uma estrutura válida
+            return {
+              id: feedback.id,
+              content: feedback.content,
+              likes: feedback.likes || 0,
+              isLiked: feedback.isLiked || false,
+              // Lidar com diferentes formatos de dados de autor
+              author: feedback.author || undefined,
+              userName: feedback.userName || null,
+              isAnonimo: feedback.isAnonimo || false,
+              userId: feedback.userId || null,
+              createdAt: feedback.createdAt || new Date()
+            };
+          });
+        }
+        
         setCard(parsedData);
       } catch (error) {
         console.error('Erro ao parsear dados do card:', error);
@@ -245,19 +274,25 @@ export default function CardDetailsScreen() {
         if (card.link) {
           message += `\n\nSaiba mais: ${card.link}`;
         }
-        title = `Compartilhar post de ${card.author.name}`;
+        title = `Compartilhar post de ${card.author?.name || 'Usuário'}`;
       } else if (feedback) {
         // Compartilhar um feedback específico
-        message = `Comentário de ${feedback.author.name} sobre o post "${card.title}":\n\n"${feedback.content}"`;
+        const authorName = feedback.author?.name || feedback.userName || 'Anônimo';
+        message = `Comentário de ${authorName} sobre o post "${card.title}":\n\n"${feedback.content}"`;
         title = `Compartilhar comentário`;
       }
       
-      await Share.share({
+      const result = await Share.share({
         message,
         title,
       });
+      
+      if (result.action === Share.sharedAction) {
+        console.log('Compartilhado com sucesso');
+      }
     } catch (error) {
-      Alert.alert('Erro', 'Ocorreu um erro ao compartilhar');
+      console.error('Erro ao compartilhar:', error);
+      Alert.alert('Erro', 'Não foi possível compartilhar este conteúdo');
     }
   };
 
@@ -286,26 +321,29 @@ export default function CardDetailsScreen() {
   const submitFeedback = () => {
     if (!card || !newFeedback.trim()) return;
     
-    // Criar um novo feedback
+    const user = { name: 'Você', avatar: getAvatarUri('Você') };
+    
     const newFeedbackObj: Feedback = {
       id: `new-${Date.now()}`,
-      author: {
-        name: 'Você',
-        avatar: getAvatarUri('Você'),
-      },
-      content: newFeedback,
+      content: newFeedback.trim(),
       likes: 0,
       isLiked: false,
+      author: user,
+      isAnonimo: false,
+      userName: 'Você',
+      userId: 'current-user', // Idealmente, deveria ser o ID do usuário atual
+      createdAt: new Date()
     };
     
-    // Adicionar o novo feedback à lista
     setCard({
       ...card,
-      allFeedbacks: [newFeedbackObj, ...card.allFeedbacks],
       comments: card.comments + 1,
+      allFeedbacks: [newFeedbackObj, ...card.allFeedbacks]
     });
     
     setNewFeedback('');
+    
+    // Aqui você poderia adicionar uma chamada para salvar o feedback no Firebase
   };
 
   if (!card) {
@@ -340,8 +378,16 @@ export default function CardDetailsScreen() {
         <View style={[styles.cardContainer, { backgroundColor: colors.background50 }]}>
           <View style={styles.cardHeader}>
             <View style={styles.authorContainer}>
-              <Image source={card.author.avatar} style={styles.avatar} />
-              <Text style={[styles.authorName, { color: colors.titlePrimary }]}>{card.title}</Text>
+              <Image 
+                source={card.author?.avatar || getAvatarUri('Usuário')} 
+                style={styles.avatar} 
+              />
+              <Text 
+                style={[styles.authorName, { color: colors.titlePrimary }]}
+                numberOfLines={2}
+              >
+                {card.title}
+              </Text>
             </View>
             <TouchableOpacity 
               style={styles.bookmarkButton}
@@ -376,7 +422,11 @@ export default function CardDetailsScreen() {
               }}
             >
               <Ionicons name="link-outline" size={18} color={colors.primary} />
-              <Text style={[styles.linkText, { color: colors.primary }]} numberOfLines={1}>
+              <Text 
+                style={[styles.linkText, { color: colors.primary }]} 
+                numberOfLines={1}
+                ellipsizeMode="middle"
+              >
                 {card.link}
               </Text>
             </TouchableOpacity>
@@ -460,9 +510,26 @@ export default function CardDetailsScreen() {
             >
               <View style={styles.feedbackHeader}>
                 <View style={styles.feedbackAuthor}>
-                  <Image source={feedback.author.avatar} style={styles.feedbackAvatar} />
-                  <Text style={[styles.feedbackAuthorName, { color: colors.titlePrimary }]}>
-                    {feedback.author.name}
+                  <Image 
+                    source={
+                      feedback.author && feedback.author.avatar 
+                        ? feedback.author.avatar 
+                        : feedback.userName 
+                          ? getAvatarUri(feedback.userName) 
+                          : getAvatarUri('Anônimo')
+                    } 
+                    style={styles.feedbackAvatar} 
+                  />
+                  <Text 
+                    style={[styles.feedbackAuthorName, { color: colors.titlePrimary }]}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
+                    {feedback.author && feedback.author.name 
+                      ? feedback.author.name 
+                      : feedback.userName || feedback.isAnonimo 
+                        ? 'Anônimo' 
+                        : 'Usuário'}
                   </Text>
                 </View>
                 <TouchableOpacity 
@@ -604,7 +671,9 @@ const styles = StyleSheet.create({
   },
   authorContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    flex: 1,
+    maxWidth: '85%',
   },
   avatar: {
     width: 40,
@@ -615,6 +684,8 @@ const styles = StyleSheet.create({
   authorName: {
     fontSize: 16,
     fontWeight: '600',
+    flex: 1,
+    flexWrap: 'wrap',
   },
   bookmarkButton: {
     padding: 4,
@@ -705,6 +776,8 @@ const styles = StyleSheet.create({
   feedbackAuthor: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+    maxWidth: '90%',
   },
   feedbackAvatar: {
     width: 30,
@@ -715,6 +788,7 @@ const styles = StyleSheet.create({
   feedbackAuthorName: {
     fontSize: 14,
     fontWeight: '500',
+    flex: 1,
   },
   moreButton: {
     padding: 4,
