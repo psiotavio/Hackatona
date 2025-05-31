@@ -17,8 +17,9 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../contexts/ThemeContext";
-import { auth } from "../services/firebase/firebase.config";
+import { auth, db } from "../services/firebase/firebase.config";
 import { createUserWithEmailAndPassword } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
 
 const { width } = Dimensions.get("window");
 
@@ -56,8 +57,19 @@ export default function RegisterScreen() {
 			return;
 		}
 		try {
-			await createUserWithEmailAndPassword(auth, email, senha);
-			// Aqui você pode salvar informações adicionais no Firestore, se desejar
+			const userCredential = await createUserWithEmailAndPassword(auth, email, senha);
+			const user = userCredential.user;
+			
+			// Criar documento do usuário no Firestore
+			await setDoc(doc(db, "users", user.uid), {
+				nome,
+				email,
+				cpfCnpj,
+				tipo,
+				nomeEmpresa: tipo === "empresa" ? nomeEmpresa : null,
+				dataCriacao: new Date().toISOString(),
+			});
+
 			if (tipo === "cliente") {
 				router.replace("/pendente");
 			} else {
