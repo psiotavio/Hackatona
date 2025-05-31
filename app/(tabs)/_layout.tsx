@@ -26,7 +26,6 @@ export default function TabLayout() {
       await AsyncStorage.setItem('userType', 'cliente');
       
       const type = await AsyncStorage.getItem('userType');
-      console.log('TIPO DE USUÁRIO:', type);
       
       setIsEmpresa(type === 'empresa');
       setIsLoading(false);
