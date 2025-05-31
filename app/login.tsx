@@ -12,10 +12,14 @@ import {
   Keyboard,
   Modal,
   Alert,
+  Dimensions,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../contexts/ThemeContext';
+
+const { width } = Dimensions.get('window');
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -24,33 +28,28 @@ export default function LoginScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [emailRecuperacao, setEmailRecuperacao] = useState('');
   const router = useRouter();
+  const { colors, currentTheme } = useTheme();
 
   const handleLogin = () => {
-    // Implementar lógica de login aqui
     if (email && senha) {
-      // Navegue para a tela principal após login bem-sucedido
       router.replace('/(tabs)');
     }
   };
 
   const handleBack = () => {
-    // Voltar para a tela anterior
-    router.back();
+    router.push('/welcome');
   };
 
   const handleEsqueceuSenha = () => {
-    // Abrir o modal de recuperação de senha
     setModalVisible(true);
   };
 
   const handleEnviarRecuperacao = () => {
-    // Aqui você implementaria a lógica para enviar o e-mail de recuperação
     if (emailRecuperacao.trim() === '') {
       Alert.alert('Erro', 'Por favor, insira seu e-mail.');
       return;
     }
     
-    // Simulação de envio de e-mail
     Alert.alert(
       'E-mail enviado',
       'Um link de recuperação foi enviado para o seu e-mail.',
@@ -67,29 +66,27 @@ export default function LoginScreen() {
   };
 
   const handleRegistrar = () => {
-    // Navegar para a tela de registro
-    // router.push('/registrar');
-    console.log('Registrar nova conta');
+    router.push('/register');
   };
 
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
     >
-      <StatusBar style="auto" />
+      <StatusBar style={currentTheme === 'dark' ? 'light' : 'dark'} />
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={styles.inner}>
           <TouchableOpacity 
             style={styles.backButton} 
             onPress={handleBack}
           >
-            <Ionicons name="arrow-back" size={24} color="#333" />
+            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
 
           <View style={styles.logoContainer}>
             <Image
-              source={require('../assets/images/logos/Logo-Brown.png')}
+              source={currentTheme === 'dark' ? require('../assets/images/logos/logoVertical-light.png') : require('../assets/images/logos/logoVertical-Brown.png')}
               style={styles.logo}
               resizeMode="contain"
             />
@@ -97,18 +94,27 @@ export default function LoginScreen() {
 
           <View style={styles.formContainer}>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { 
+                backgroundColor: colors.background50,
+                borderColor: colors.border,
+                color: colors.textPrimary
+              }]}
               placeholder="Email"
+              placeholderTextColor={colors.textSecondary}
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
             />
             
-            <View style={styles.passwordContainer}>
+            <View style={[styles.passwordContainer, { 
+              backgroundColor: colors.background50,
+              borderColor: colors.border
+            }]}>
               <TextInput
-                style={styles.passwordInput}
+                style={[styles.passwordInput, { color: colors.textPrimary }]}
                 placeholder="Senha"
+                placeholderTextColor={colors.textSecondary}
                 value={senha}
                 onChangeText={setSenha}
                 secureTextEntry={!mostrarSenha}
@@ -120,7 +126,7 @@ export default function LoginScreen() {
                 <Ionicons 
                   name={mostrarSenha ? "eye-off" : "eye"} 
                   size={24} 
-                  color="#777"
+                  color={colors.textSecondary}
                 />
               </TouchableOpacity>
             </View>
@@ -129,55 +135,55 @@ export default function LoginScreen() {
               onPress={handleEsqueceuSenha}
               style={styles.forgotPasswordLink}
             >
-              <Text style={styles.forgotPasswordText}>Esqueceu a senha?</Text>
+              <Text style={[styles.forgotPasswordText, { color: colors.primary }]}>Esqueceu a senha?</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={styles.loginButton}
+              style={[styles.loginButton, { backgroundColor: colors.primary }]}
               onPress={handleLogin}
             >
-              <Text style={styles.loginButtonText}>Entrar</Text>
+              <Text style={[styles.loginButtonText, { color: colors.background }]}>Entrar</Text>
             </TouchableOpacity>
             
             <View style={styles.registerContainer}>
-              <Text style={styles.registerText}>Não possui conta? </Text>
+              <Text style={[styles.registerText, { color: colors.textPrimary }]}>Não possui conta? </Text>
               <TouchableOpacity onPress={handleRegistrar}>
-                <Text style={styles.registerLink}>Registre-se</Text>
+                <Text style={[styles.registerLink, { color: colors.primary }]}>Registre-se</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </TouchableWithoutFeedback>
 
-      {/* Modal para recuperação de senha */}
       <Modal
         animationType="fade"
         transparent={true}
         visible={modalVisible}
-        onRequestClose={() => {
-          setModalVisible(!modalVisible);
-        }}
+        onRequestClose={() => setModalVisible(false)}
       >
         <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
-          <View style={styles.modalOverlay}>
+          <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
             <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
-              <View style={styles.modalContent}>
+              <View style={[styles.modalContent, { backgroundColor: colors.background50 }]}>
                 <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>Recuperação de Senha</Text>
-                  <TouchableOpacity
-                    onPress={() => setModalVisible(false)}
-                  >
-                    <Ionicons name="close" size={24} color="#333" />
+                  <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Recuperação de Senha</Text>
+                  <TouchableOpacity onPress={() => setModalVisible(false)}>
+                    <Ionicons name="close" size={24} color={colors.textPrimary} />
                   </TouchableOpacity>
                 </View>
                 
-                <Text style={styles.modalText}>
+                <Text style={[styles.modalText, { color: colors.textSecondary }]}>
                   Insira seu e-mail cadastrado para receber as instruções de recuperação de senha.
                 </Text>
                 
                 <TextInput
-                  style={styles.modalInput}
+                  style={[styles.modalInput, { 
+                    backgroundColor: colors.background,
+                    borderColor: colors.border,
+                    color: colors.textPrimary
+                  }]}
                   placeholder="Email"
+                  placeholderTextColor={colors.textSecondary}
                   value={emailRecuperacao}
                   onChangeText={setEmailRecuperacao}
                   keyboardType="email-address"
@@ -185,10 +191,10 @@ export default function LoginScreen() {
                 />
                 
                 <TouchableOpacity
-                  style={styles.modalButton}
+                  style={[styles.modalButton, { backgroundColor: colors.primary }]}
                   onPress={handleEnviarRecuperacao}
                 >
-                  <Text style={styles.modalButtonText}>Enviar</Text>
+                  <Text style={[styles.modalButtonText, { color: colors.background }]}>Enviar</Text>
                 </TouchableOpacity>
               </View>
             </TouchableWithoutFeedback>
@@ -202,7 +208,6 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   inner: {
     flex: 1,
@@ -220,90 +225,79 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   logo: {
-    width: 200,
-    height: 120,
+    width: width * 0.5,
+    height: width * 0.5,
   },
   formContainer: {
     width: '100%',
   },
   input: {
-    height: 50,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    marginBottom: 15,
-    paddingHorizontal: 15,
+    height: 48,
+    borderWidth: 1.5,
+    borderRadius: 24,
+    marginBottom: 16,
+    paddingHorizontal: 20,
     fontSize: 16,
-    backgroundColor: '#f9f9f9',
   },
   passwordContainer: {
     flexDirection: 'row',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    marginBottom: 5,
-    backgroundColor: '#f9f9f9',
+    borderWidth: 1.5,
+    borderRadius: 24,
+    marginBottom: 8,
     position: 'relative',
   },
   passwordInput: {
     flex: 1,
-    height: 50,
-    paddingHorizontal: 15,
+    height: 48,
+    paddingHorizontal: 20,
     fontSize: 16,
   },
   eyeIcon: {
     position: 'absolute',
-    right: 15,
-    height: 50,
+    right: 16,
+    height: 48,
     justifyContent: 'center',
   },
   forgotPasswordLink: {
     alignSelf: 'flex-end',
-    marginBottom: 15,
+    marginBottom: 16,
   },
   forgotPasswordText: {
-    color: '#8B4513',
     fontSize: 14,
   },
   loginButton: {
-    backgroundColor: '#8B4513', // Marrom para combinar com o logo
-    height: 50,
-    borderRadius: 8,
+    height: 52,
+    borderRadius: 26,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 16,
   },
   loginButtonText: {
-    color: 'white',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
+    letterSpacing: 0.5,
   },
   registerContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 20,
+    marginTop: 24,
   },
   registerText: {
     fontSize: 14,
-    color: '#333',
   },
   registerLink: {
     fontSize: 14,
-    color: '#8B4513',
     fontWeight: 'bold',
   },
-  // Estilos do Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
   modalContent: {
-    backgroundColor: 'white',
-    borderRadius: 10,
-    padding: 20,
+    borderRadius: 20,
+    padding: 24,
     width: '100%',
     maxWidth: 400,
     shadowColor: '#000',
@@ -319,38 +313,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: 16,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
   },
   modalText: {
-    marginBottom: 15,
-    color: '#555',
-    lineHeight: 20,
+    marginBottom: 16,
+    lineHeight: 22,
   },
   modalInput: {
-    height: 50,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    marginBottom: 20,
-    paddingHorizontal: 15,
+    height: 48,
+    borderWidth: 1.5,
+    borderRadius: 24,
+    marginBottom: 24,
+    paddingHorizontal: 20,
     fontSize: 16,
-    backgroundColor: '#f9f9f9',
   },
   modalButton: {
-    backgroundColor: '#8B4513',
-    height: 50,
-    borderRadius: 8,
+    height: 52,
+    borderRadius: 26,
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalButtonText: {
-    color: 'white',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
   },
 }); 

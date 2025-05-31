@@ -9,13 +9,31 @@ const WelcomeScreen = () => {
   const { colors, currentTheme } = useTheme();
   const router = useRouter();
 
+  const handleLogin = () => {
+    router.push('/login'); // ou use '/pendente' se preferir
+  };
+
+  const handleRegister = () => {
+    router.push('/register');
+  };
+
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>  
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Logo centralizada */}
-      <Image source={ currentTheme === 'dark' ? require('../assets/images/logos/logoVertical-light.png') : require('../assets/images/logos/logoVertical-Brown.png')} style={styles.logo} resizeMode="contain" />
+      <Image
+        source={
+          currentTheme === 'dark'
+            ? require('../assets/images/logos/logoVertical-light.png')
+            : require('../assets/images/logos/logoVertical-Brown.png')
+        }
+        style={styles.logo}
+        resizeMode="contain"
+      />
 
       {/* Nome do app */}
-      <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Bem-vindo! Entre ou crie sua conta para começar.</Text>
+      <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+        Bem-vindo! Entre ou crie sua conta para começar.
+      </Text>
 
       <View style={styles.buttonGroup}>
         {/* Botão Login */}
@@ -23,18 +41,22 @@ const WelcomeScreen = () => {
           style={({ pressed }) => [
             styles.button,
             styles.buttonFilled,
-            { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 }
+            { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 },
           ]}
-          onPress={() => router.push('/pendente')}
+          onPress={handleLogin}
         >
           <Text style={[styles.buttonText, { color: colors.background }]}>Fazer Login</Text>
         </Pressable>
+
         {/* Botão Criar Conta */}
-        <Pressable style={({ pressed }) => [
-          styles.button,
-          styles.buttonOutlined,
-          { borderColor: colors.primary, opacity: pressed ? 0.85 : 1 }
-        ]}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.button,
+            styles.buttonOutlined,
+            { borderColor: colors.primary, opacity: pressed ? 0.85 : 1 },
+          ]}
+          onPress={handleRegister}
+        >
           <Text style={[styles.buttonText, { color: colors.primary }]}>Criar Conta</Text>
         </Pressable>
       </View>
