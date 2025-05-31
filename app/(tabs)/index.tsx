@@ -185,20 +185,35 @@ export default function HomeScreen() {
       );
 
       // Usar onSnapshot para atualizações em tempo real
-      const unsubscribe = onSnapshot(postsQuery, (snapshot) => {
-        const posts = snapshot.docs.map(doc => {
-          const data = doc.data();
+      const unsubscribe = onSnapshot(postsQuery, async (snapshot) => {
+        const posts = await Promise.all(snapshot.docs.map(async (docSnapshot) => {
+          const data = docSnapshot.data();
           console.log("Post data completo:", {
-            id: doc.id,
+            id: docSnapshot.id,
             ...data,
             empresaId,
             userData
           });
 
-          const allFeedbacks = data.allFeedbacks?.map((feedback: any) => ({
-            ...feedback,
-            isLiked: false
-          })) || [];
+          // Processar feedbacks
+          const allFeedbacks = await Promise.all((data.allFeedbacks || []).map(async (feedback: any) => {
+            let userName = 'Anônimo';
+            
+            if (!feedback.isAnonimo && feedback.userId) {
+              // Buscar nome do usuário na tabela users
+              const userDocRef = await getDoc(doc(db, "users", feedback.userId));
+              if (userDocRef.exists()) {
+                const userData = userDocRef.data() as { nome?: string };
+                userName = userData.nome || 'Usuário';
+              }
+            }
+
+            return {
+              ...feedback,
+              userName,
+              isLiked: false
+            };
+          }));
 
           // Determinar o topFeedback
           let topFeedback: Feedback | undefined;
@@ -211,11 +226,21 @@ export default function HomeScreen() {
             )[0];
           }
 
+          // Buscar nome do autor do post
+          let authorName = 'Anônimo';
+          if (!data.anonimo && data.userId) {
+            const authorDocRef = await getDoc(doc(db, "users", data.userId));
+            if (authorDocRef.exists()) {
+              const authorData = authorDocRef.data() as { nome?: string };
+              authorName = authorData.nome || 'Usuário';
+            }
+          }
+
           return {
-            id: doc.id,
+            id: docSnapshot.id,
             author: {
-              name: data.userName || 'Anônimo',
-              avatar: getAvatarUri(data.userName || 'Anônimo'),
+              name: authorName,
+              avatar: getAvatarUri(authorName),
             },
             title: data.titulo,
             description: data.descricao,
@@ -232,7 +257,7 @@ export default function HomeScreen() {
             tipo: data.tipo,
             empresaId: data.empresaId
           };
-        });
+        }));
 
         console.log("Total de posts encontrados:", posts.length);
         setTimeData(posts);

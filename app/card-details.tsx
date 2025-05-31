@@ -16,6 +16,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
+import { getDoc, doc } from 'firebase/firestore';
+import { db } from '@/services/firebase/firebase.config';
 
 // Função para gerar avatar com as iniciais do nome
 const getAvatarUri = (name: string) => {
@@ -29,7 +31,7 @@ interface Feedback {
     name: string;
     avatar: any;
   };
-  userName?: string | null;
+  nome?: string | null;
   isAnonimo?: boolean;
   content: string;
   likes: number;
@@ -54,136 +56,12 @@ interface Post {
   comments: number;
   topFeedback?: Feedback;
   allFeedbacks: Feedback[];
-  userName?: string | null;
+  nome?: string | null;
   userId?: string | null;
   empresaId?: string;
   nomeEmpresa?: string;
   createdAt?: Date;
 }
-
-// Dados fictícios para os cards de time
-const TIME_DATA: Post[] = [
-  {
-    id: '1',
-    author: {
-      name: 'Teste Lorem Ipsum',
-      avatar: getAvatarUri('Teste Lorem'),
-    },
-    title: 'Teste Lorem Ipsum',
-    description: 'Fiz uma tela de dashboard com várias funcionalidades interativas e responsivas para melhorar a experiência do usuário.',
-    image: 'https://picsum.photos/800/600',
-    link: 'https://exemplo.com/dashboard',
-    likes: 5,
-    isLiked: false,
-    isFavorite: false,
-    comments: 3,
-    topFeedback: {
-      id: '101',
-      author: {
-        name: 'Super Interessante!',
-        avatar: getAvatarUri('Super Interessante'),
-      },
-      content: 'Super Interessante!',
-      likes: 8,
-      isLiked: false,
-    },
-    allFeedbacks: [
-      {
-        id: '101',
-        author: {
-          name: 'Super Interessante!',
-          avatar: getAvatarUri('Super Interessante'),
-        },
-        content: 'Super Interessante!',
-        likes: 8,
-        isLiked: false,
-      },
-      {
-        id: '102',
-        author: {
-          name: 'João Silva',
-          avatar: getAvatarUri('João Silva'),
-        },
-        content: 'Ficou incrível! Adorei as cores e a disposição dos elementos.',
-        likes: 5,
-        isLiked: false,
-      },
-      {
-        id: '103',
-        author: {
-          name: 'Maria Oliveira',
-          avatar: getAvatarUri('Maria Oliveira'),
-        },
-        content: 'Muito bom! Conseguiu resolver vários problemas de usabilidade que tínhamos antes.',
-        likes: 3,
-        isLiked: false,
-      }
-    ]
-  },
-  // Outros cards aqui...
-];
-
-// Dados fictícios para os cards de empresa
-const EMPRESA_DATA: Post[] = [
-  {
-    id: '101',
-    author: {
-      name: 'Tech Solutions',
-      avatar: getAvatarUri('Tech Solutions'),
-    },
-    title: 'Tech Solutions',
-    description: 'Lançamos a nova versão do nosso app empresarial com recursos avançados de IA e automação de processos.',
-    image: 'https://picsum.photos/800/500',
-    link: 'https://techsolutions.com/novidades',
-    likes: 48,
-    isLiked: false,
-    isFavorite: false,
-    comments: 15,
-    topFeedback: {
-      id: '201',
-      author: {
-        name: 'Sandra Marketing',
-        avatar: getAvatarUri('Sandra Marketing'),
-      },
-      content: 'Essa atualização vai revolucionar o mercado!',
-      likes: 32,
-      isLiked: false,
-    },
-    allFeedbacks: [
-      {
-        id: '201',
-        author: {
-          name: 'Sandra Marketing',
-          avatar: getAvatarUri('Sandra Marketing'),
-        },
-        content: 'Essa atualização vai revolucionar o mercado!',
-        likes: 32,
-        isLiked: false,
-      },
-      {
-        id: '202',
-        author: {
-          name: 'Carlos Vendas',
-          avatar: getAvatarUri('Carlos Vendas'),
-        },
-        content: 'Já estamos recebendo feedback positivo dos clientes que testaram a versão beta!',
-        likes: 18,
-        isLiked: false,
-      },
-      {
-        id: '203',
-        author: {
-          name: 'Ana Desenvolvimento',
-          avatar: getAvatarUri('Ana Desenvolvimento'),
-        },
-        content: 'Muito orgulhosa do trabalho da equipe nessa atualização!',
-        likes: 15,
-        isLiked: false,
-      }
-    ]
-  },
-  // Outros cards aqui...
-];
 
 export default function CardDetailsScreen() {
   const router = useRouter();
@@ -201,34 +79,70 @@ export default function CardDetailsScreen() {
     if (cardData) {
       try {
         const parsedData = JSON.parse(cardData as string);
+        console.log("Dados do card recebidos:", parsedData);
         
-        // Certificar-se de que todos os feedbacks tenham as propriedades necessárias
-        if (parsedData.allFeedbacks) {
-          parsedData.allFeedbacks = parsedData.allFeedbacks.map((feedback: any) => {
-            // Garantir que cada feedback tenha uma estrutura válida
-            return {
-              id: feedback.id,
-              content: feedback.content,
-              likes: feedback.likes || 0,
-              isLiked: feedback.isLiked || false,
-              // Lidar com diferentes formatos de dados de autor
-              author: feedback.author || undefined,
-              userName: feedback.userName || null,
-              isAnonimo: feedback.isAnonimo || false,
-              userId: feedback.userId || null,
-              createdAt: feedback.createdAt || new Date()
+        const fetchUserData = async () => {
+          try {
+            // Processar feedbacks
+            const processedFeedbacks = await Promise.all(parsedData.allFeedbacks.map(async (feedback: any) => {
+              let nome = 'Anônimo';
+              
+              if (!feedback.isAnonimo && feedback.userId) {
+                try {
+                  const userDocRef = await getDoc(doc(db, "users", feedback.userId));
+                  if (userDocRef.exists()) {
+                    const userData = userDocRef.data();
+                    nome = userData.nome || 'Usuário';
+                  }
+                } catch (error) {
+                  console.error("Erro ao buscar dados do usuário:", error);
+                }
+              }
+
+              return {
+                ...feedback,
+                nome,
+                isLiked: false
+              };
+            }));
+
+            // Processar autor do post
+            let nomeAutor = 'Anônimo';
+
+            if (!parsedData.isAnonimo && parsedData.userId) {
+              try {
+                const authorDocRef = await getDoc(doc(db, "users", parsedData.userId));
+                if (authorDocRef.exists()) {
+                  const authorData = authorDocRef.data();
+                  nomeAutor = authorData.nome || 'Usuário';
+                }
+              } catch (error) {
+                console.error("Erro ao buscar dados do autor:", error);
+              }
+            }
+
+            const updatedCard = {
+              ...parsedData,
+              nome: nomeAutor,
+              allFeedbacks: processedFeedbacks
             };
-          });
-        }
-        
-        setCard(parsedData);
+
+            console.log("Card atualizado com sucesso:", updatedCard);
+            setCard(updatedCard);
+          } catch (error) {
+            console.error("Erro ao processar dados do card:", error);
+            Alert.alert('Erro', 'Não foi possível carregar os detalhes do post');
+            router.back();
+          }
+        };
+
+        fetchUserData();
       } catch (error) {
         console.error('Erro ao parsear dados do card:', error);
         Alert.alert('Erro', 'Não foi possível carregar os detalhes do post');
         router.back();
       }
     } else {
-      // Se não houver dados, voltar para a tela anterior
       Alert.alert('Erro', 'Post não encontrado');
       router.back();
     }
@@ -277,7 +191,7 @@ export default function CardDetailsScreen() {
         title = `Compartilhar post de ${card.author?.name || 'Usuário'}`;
       } else if (feedback) {
         // Compartilhar um feedback específico
-        const authorName = feedback.author?.name || feedback.userName || 'Anônimo';
+        const authorName = feedback.author?.name || feedback.nome || 'Anônimo';
         message = `Comentário de ${authorName} sobre o post "${card.title}":\n\n"${feedback.content}"`;
         title = `Compartilhar comentário`;
       }
@@ -330,7 +244,7 @@ export default function CardDetailsScreen() {
       isLiked: false,
       author: user,
       isAnonimo: false,
-      userName: 'Você',
+      nome: 'Você',
       userId: 'current-user', // Idealmente, deveria ser o ID do usuário atual
       createdAt: new Date()
     };
@@ -511,13 +425,7 @@ export default function CardDetailsScreen() {
               <View style={styles.feedbackHeader}>
                 <View style={styles.feedbackAuthor}>
                   <Image 
-                    source={
-                      feedback.author && feedback.author.avatar 
-                        ? feedback.author.avatar 
-                        : feedback.userName 
-                          ? getAvatarUri(feedback.userName) 
-                          : getAvatarUri('Anônimo')
-                    } 
+                    source={getAvatarUri(feedback.nome || 'Anônimo')} 
                     style={styles.feedbackAvatar} 
                   />
                   <Text 
@@ -525,11 +433,7 @@ export default function CardDetailsScreen() {
                     numberOfLines={1}
                     ellipsizeMode="tail"
                   >
-                    {feedback.author && feedback.author.name 
-                      ? feedback.author.name 
-                      : feedback.userName || feedback.isAnonimo 
-                        ? 'Anônimo' 
-                        : 'Usuário'}
+                    {feedback.nome || 'Anônimo'}
                   </Text>
                 </View>
                 <TouchableOpacity 
