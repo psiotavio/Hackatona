@@ -2,6 +2,53 @@
 
 **Feedin** é um aplicativo mobile que torna o processo de feedback entre colegas de empresa ou time mais simples, divertido e recompensador.
 
+## 🚀 Instalação
+
+### Pré-requisitos
+- Node.js (versão 18 ou superior)
+- npm ou yarn
+- Expo CLI (`npm install -g expo-cli`)
+- Um dispositivo móvel com o aplicativo Expo Go instalado (disponível na [App Store](https://apps.apple.com/app/apple-store/id982107779) ou [Google Play](https://play.google.com/store/apps/details?id=host.exp.exponent))
+
+### Passos para instalação
+
+1. Clone o repositório:
+```bash
+git clone https://github.com/seu-usuario/feedin.git
+cd feedin
+```
+
+2. Instale as dependências:
+```bash
+npm install
+# ou
+yarn install
+```
+
+3. Configure as variáveis de ambiente:
+- Crie um arquivo `.env` na raiz do projeto
+- Adicione suas credenciais do Firebase e OpenAI:
+```
+FIREBASE_API_KEY=sua_chave_api
+FIREBASE_AUTH_DOMAIN=seu_dominio
+FIREBASE_PROJECT_ID=seu_projeto_id
+FIREBASE_STORAGE_BUCKET=seu_bucket
+FIREBASE_MESSAGING_SENDER_ID=seu_sender_id
+FIREBASE_APP_ID=seu_app_id
+OPENAI_API_KEY=sua_chave_api_openai
+```
+
+4. Inicie o aplicativo:
+```bash
+npm start
+# ou
+yarn start
+```
+
+5. Escaneie o QR Code que aparecerá no terminal com:
+- iOS: Câmera do iPhone
+- Android: App Expo Go
+
 ### BrainStorm & Idéia
 
 Iniciamos um processo de **brainstorming em grupo**, onde levantamos ideias, soluções e funcionalidades possíveis. Durante esse momento criativo, mapeamos as seguintes dores:
