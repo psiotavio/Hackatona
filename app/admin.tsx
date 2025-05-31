@@ -19,6 +19,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth, db } from '@/services/firebase/firebase.config';
 import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { useTheme } from '@/contexts/ThemeContext';
+import BottomBar from './components/BottomBar';
 
 // Função para gerar avatar com as iniciais do nome
 const getAvatarUri = (name: string) => {
@@ -39,6 +40,7 @@ interface Usuario {
 }
 
 export default function AdminScreen() {
+  const [isEmpresa, setIsEmpresa] = useState(false);
   const [solicitacoes, setSolicitacoes] = useState<Usuario[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [usuarioSelecionado, setUsuarioSelecionado] = useState<Usuario | null>(null);
@@ -50,6 +52,8 @@ export default function AdminScreen() {
     const verificarTipoUsuario = async () => {
       try {
         const userType = await AsyncStorage.getItem('userType');
+        setIsEmpresa(userType === 'empresa');
+        
         if (userType !== 'empresa') {
           // Redirecionar para a tela inicial se não for empresa
           router.replace('/');
@@ -193,6 +197,8 @@ export default function AdminScreen() {
           )}
         </View>
       </ScrollView>
+
+      {isEmpresa && <BottomBar isEmpresa={isEmpresa} />}
     </SafeAreaView>
   );
 }
@@ -215,6 +221,7 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+    marginBottom: 60,
   },
   conteudo: {
     padding: 16,

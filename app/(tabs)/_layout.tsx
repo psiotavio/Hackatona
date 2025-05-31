@@ -22,9 +22,6 @@ export default function TabLayout() {
   // Função para verificar o tipo de usuário
   const checkUserType = async () => {
     try {
-      // Para testes: force o tipo para 'cliente'
-      await AsyncStorage.setItem('userType', 'cliente');
-      
       const type = await AsyncStorage.getItem('userType');
       
       setIsEmpresa(type === 'empresa');
@@ -106,13 +103,6 @@ export default function TabLayout() {
           options={{
             title: 'Criar',
             tabBarIcon: ({ color }) => <TabBarIcon name="plus-circle" color={color} />,
-          }}
-        />
-        <Tabs.Screen
-          name="admin"
-          options={{
-            title: 'Admin',
-            tabBarIcon: ({ color }) => <TabBarIcon name="cog" color={color} />,
           }}
         />
         <Tabs.Screen

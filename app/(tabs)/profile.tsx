@@ -1,11 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { StyleSheet, View, Text, ScrollView, Image, TouchableOpacity, Pressable, Animated, Alert, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, Image, TouchableOpacity, Pressable, Animated, Alert, ActivityIndicator, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useRouter } from 'expo-router';
 import { auth, db } from '@/services/firebase/firebase.config';
 import { signOut } from 'firebase/auth';
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Função utilitária para gerar avatar
@@ -179,10 +179,94 @@ export default function ProfileScreen() {
   const [posts, setPosts] = useState<any[]>([]);
   const [feedbacks, setFeedbacks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isAdminModalVisible, setIsAdminModalVisible] = useState(false);
+  const [solicitacoes, setSolicitacoes] = useState<any[]>([]);
+  const [isEmpresa, setIsEmpresa] = useState(false);
 
   useEffect(() => {
     fetchUserData();
+    checkUserType();
   }, []);
+
+  const checkUserType = async () => {
+    try {
+      const type = await AsyncStorage.getItem('userType');
+      setIsEmpresa(type === 'empresa');
+    } catch (error) {
+      console.error('Erro ao verificar tipo de usuário:', error);
+    }
+  };
+
+  const carregarSolicitacoes = async () => {
+    try {
+      const user = auth.currentUser;
+      if (!user) return;
+
+      const q = query(
+        collection(db, "users"),
+        where("tipo", "==", "cliente"),
+        where("status", "==", "pending"),
+        where("empresaId", "==", user.uid)
+      );
+
+      const querySnapshot = await getDocs(q);
+      const solicitacoesList = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        dataSolicitacao: new Date(doc.data().dataCriacao).toLocaleDateString(),
+        avatar: getAvatarUri(doc.data().nome)
+      }));
+
+      setSolicitacoes(solicitacoesList);
+    } catch (error) {
+      console.error("Erro ao carregar solicitações:", error);
+      Alert.alert("Erro", "Não foi possível carregar as solicitações.");
+    }
+  };
+
+  const handleAprovar = async (usuario: any) => {
+    try {
+      await updateDoc(doc(db, "users", usuario.id), {
+        status: "approved"
+      });
+
+      setSolicitacoes(prev => prev.filter(s => s.id !== usuario.id));
+      Alert.alert("Sucesso", `${usuario.nome} foi aprovado com sucesso.`);
+    } catch (error) {
+      console.error("Erro ao aprovar usuário:", error);
+      Alert.alert("Erro", "Não foi possível aprovar o usuário.");
+    }
+  };
+
+  const handleRecusar = async (usuario: any) => {
+    Alert.alert(
+      'Recusar solicitação',
+      `Tem certeza que deseja recusar a solicitação de ${usuario.nome}?`,
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+        {
+          text: 'Recusar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await updateDoc(doc(db, "users", usuario.id), {
+                status: "rejected"
+              });
+
+              setSolicitacoes(prev => prev.filter(s => s.id !== usuario.id));
+              Alert.alert("Sucesso", `${usuario.nome} foi recusado.`);
+            } catch (error) {
+              console.error("Erro ao recusar usuário:", error);
+              Alert.alert("Erro", "Não foi possível recusar o usuário.");
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const fetchUserData = async () => {
     try {
@@ -293,6 +377,18 @@ export default function ProfileScreen() {
           <TouchableOpacity style={styles.editTextButton}>
             <Text style={[styles.editText, { color: colors.textSecondary }]}>Editar</Text>
           </TouchableOpacity>
+          {isEmpresa && (
+            <TouchableOpacity 
+              style={[styles.adminButton, { backgroundColor: colors.primary }]}
+              onPress={() => {
+                setIsAdminModalVisible(true);
+                carregarSolicitacoes();
+              }}
+            >
+              <Ionicons name="cog-outline" size={20} color="#fff" />
+              <Text style={styles.adminText}>Admin</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity 
             style={[styles.logoutButton, { backgroundColor: colors.primary }]}
             onPress={handleLogout}
@@ -341,6 +437,71 @@ export default function ProfileScreen() {
           </>
         )}
       </Animated.View>
+
+      {/* Modal de Admin */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={isAdminModalVisible}
+        onRequestClose={() => setIsAdminModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.titlePrimary }]}>
+                Solicitações Pendentes
+              </Text>
+              <TouchableOpacity
+                onPress={() => setIsAdminModalVisible(false)}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.solicitacoesList}>
+              {solicitacoes.length === 0 ? (
+                <Text style={[styles.semSolicitacoes, { color: colors.textSecondary }]}>
+                  Não há solicitações pendentes no momento.
+                </Text>
+              ) : (
+                solicitacoes.map((solicitacao) => (
+                  <View key={solicitacao.id} style={[styles.solicitacaoContainer, { backgroundColor: colors.background50 }]}>
+                    <View style={styles.solicitacaoHeader}>
+                      <Image source={solicitacao.avatar} style={styles.solicitacaoAvatar} />
+                      <View style={styles.solicitacaoInfo}>
+                        <Text style={[styles.solicitacaoNome, { color: colors.titlePrimary }]}>{solicitacao.nome}</Text>
+                        <Text style={[styles.solicitacaoEmail, { color: colors.textSecondary }]}>{solicitacao.email}</Text>
+                        <Text style={[styles.solicitacaoData, { color: colors.textSecondary }]}>
+                          Solicitação: {solicitacao.dataSolicitacao}
+                        </Text>
+                      </View>
+                    </View>
+                    
+                    <View style={styles.acaoContainer}>
+                      <TouchableOpacity 
+                        style={styles.botaoAprovar}
+                        onPress={() => handleAprovar(solicitacao)}
+                      >
+                        <Ionicons name="checkmark-circle-outline" size={22} color="#fff" />
+                        <Text style={styles.botaoTexto}>Aprovar</Text>
+                      </TouchableOpacity>
+                      
+                      <TouchableOpacity 
+                        style={styles.botaoRecusar}
+                        onPress={() => handleRecusar(solicitacao)}
+                      >
+                        <Ionicons name="close-circle-outline" size={22} color="#fff" />
+                        <Text style={styles.botaoTexto}>Recusar</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -432,5 +593,119 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 16,
     marginTop: 20,
+  },
+  adminButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginLeft: 16,
+  },
+  adminText: {
+    color: '#fff',
+    marginLeft: 8,
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    width: '90%',
+    maxHeight: '80%',
+    borderRadius: 12,
+    padding: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  solicitacoesList: {
+    flex: 1,
+  },
+  semSolicitacoes: {
+    textAlign: 'center',
+    fontSize: 16,
+    marginTop: 20,
+  },
+  solicitacaoContainer: {
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  solicitacaoHeader: {
+    flexDirection: 'row',
+    marginBottom: 12,
+  },
+  solicitacaoAvatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 12,
+  },
+  solicitacaoInfo: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  solicitacaoNome: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  solicitacaoEmail: {
+    fontSize: 14,
+  },
+  solicitacaoData: {
+    fontSize: 12,
+    marginTop: 4,
+  },
+  acaoContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  botaoAprovar: {
+    backgroundColor: '#4CAF50',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+    justifyContent: 'center',
+  },
+  botaoRecusar: {
+    backgroundColor: '#F44336',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginLeft: 8,
+    justifyContent: 'center',
+  },
+  botaoTexto: {
+    color: '#fff',
+    fontWeight: 'bold',
+    marginLeft: 8,
   },
 }); 

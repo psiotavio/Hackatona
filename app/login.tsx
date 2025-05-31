@@ -55,7 +55,7 @@ export default function LoginScreen() {
         
         // Redirecionar baseado no tipo de usuário e status
         if (userData.tipo === 'empresa') {
-          router.replace('/(tabs)/admin');
+          router.replace('/(tabs)/');
         } else if (userData.tipo === 'cliente' && userData.status === 'pending') {
           router.replace('/pendente');
         } else {
