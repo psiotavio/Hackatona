@@ -1,7 +1,11 @@
 import React, { useState, useRef } from 'react';
-import { StyleSheet, View, Text, ScrollView, Image, TouchableOpacity, Pressable, Animated } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, Image, TouchableOpacity, Pressable, Animated, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useRouter } from 'expo-router';
+import { auth } from '@/services/firebase/firebase.config';
+import { signOut } from 'firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Função utilitária para gerar avatar
 const getAvatarUri = (name: string) => ({ uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=8B4513&color=fff` });
@@ -167,8 +171,35 @@ const profileCardStyles = StyleSheet.create({
 
 export default function ProfileScreen() {
   const { colors } = useTheme();
+  const router = useRouter();
   const [tab, setTab] = useState<'posts' | 'feedbacks'>('posts');
   const fadeAnim = useRef(new Animated.Value(1)).current;
+
+  const handleLogout = async () => {
+    Alert.alert(
+      'Sair',
+      'Tem certeza que deseja sair?',
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel'
+        },
+        {
+          text: 'Sair',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await signOut(auth);
+              await AsyncStorage.removeItem('userType');
+              router.replace('/welcome');
+            } catch (error) {
+              Alert.alert('Erro', 'Não foi possível fazer logout. Tente novamente.');
+            }
+          }
+        }
+      ]
+    );
+  };
 
   // Exemplo de dados para o usuário
   const posts = [
@@ -232,9 +263,18 @@ export default function ProfileScreen() {
         />
         <Text style={[styles.nameCentered, { color: colors.titlePrimary }]}>Otávio Cunha</Text>
         <Text style={[styles.companyCentered, { color: colors.textSecondary }]}>Empresa XPTO</Text>
-        <TouchableOpacity style={styles.editTextButton}>
-          <Text style={[styles.editText, { color: colors.textSecondary }]}>Editar</Text>
-        </TouchableOpacity>
+        <View style={styles.buttonRow}>
+          <TouchableOpacity style={styles.editTextButton}>
+            <Text style={[styles.editText, { color: colors.textSecondary }]}>Editar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.logoutButton, { backgroundColor: colors.primary }]}
+            onPress={handleLogout}
+          >
+            <Ionicons name="log-out-outline" size={20} color="#fff" />
+            <Text style={styles.logoutText}>Sair</Text>
+          </TouchableOpacity>
+        </View>
       </View>
       <View style={styles.tabRowCentered}>
         <Pressable
@@ -333,5 +373,25 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     marginTop: 10,
     textAlign: 'center',
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginLeft: 16,
+  },
+  logoutText: {
+    color: '#fff',
+    marginLeft: 8,
+    fontSize: 16,
+    fontWeight: '500',
   },
 }); 

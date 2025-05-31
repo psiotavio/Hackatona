@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
 	View,
 	Text,
@@ -12,6 +12,7 @@ import {
 	KeyboardAvoidingView,
 	Platform,
 	Alert,
+	FlatList,
 } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
@@ -19,7 +20,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../contexts/ThemeContext";
 import { auth, db } from "../services/firebase/firebase.config";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, collection, query, where, getDocs } from "firebase/firestore";
 
 const { width } = Dimensions.get("window");
 
@@ -35,6 +36,46 @@ export default function RegisterScreen() {
 	const [tipo, setTipo] = useState("empresa");
 	const [showSenha, setShowSenha] = useState(false);
 	const [showRepetirSenha, setShowRepetirSenha] = useState(false);
+	const [searchQuery, setSearchQuery] = useState("");
+	const [empresas, setEmpresas] = useState<any[]>([]);
+	const [showResults, setShowResults] = useState(false);
+	const [selectedEmpresa, setSelectedEmpresa] = useState<any>(null);
+
+	useEffect(() => {
+		const searchEmpresas = async () => {
+			if (searchQuery.length < 2) {
+				setEmpresas([]);
+				return;
+			}
+
+			try {
+				const q = query(
+					collection(db, "users"),
+					where("tipo", "==", "empresa"),
+					where("nomeEmpresa", ">=", searchQuery),
+					where("nomeEmpresa", "<=", searchQuery + "\uf8ff")
+				);
+
+				const querySnapshot = await getDocs(q);
+				const empresasList = querySnapshot.docs.map(doc => ({
+					id: doc.id,
+					...doc.data()
+				}));
+				setEmpresas(empresasList);
+			} catch (error) {
+				console.error("Erro ao buscar empresas:", error);
+			}
+		};
+
+		searchEmpresas();
+	}, [searchQuery]);
+
+	const handleSelectEmpresa = (empresa: any) => {
+		setSelectedEmpresa(empresa);
+		setNomeEmpresa(empresa.nomeEmpresa);
+		setSearchQuery(empresa.nomeEmpresa);
+		setShowResults(false);
+	};
 
 	const handleBack = () => {
 		router.push("/welcome");
@@ -47,7 +88,8 @@ export default function RegisterScreen() {
 			!senha ||
 			!repetirSenha ||
 			!cpfCnpj ||
-			(tipo === "empresa" && !nomeEmpresa)
+			(tipo === "empresa" && !nomeEmpresa) ||
+			(tipo === "cliente" && !selectedEmpresa)
 		) {
 			Alert.alert("Erro", "Por favor, preencha todos os campos.");
 			return;
@@ -66,7 +108,9 @@ export default function RegisterScreen() {
 				email,
 				cpfCnpj,
 				tipo,
-				nomeEmpresa: tipo === "empresa" ? nomeEmpresa : null,
+				nomeEmpresa: tipo === "empresa" ? nomeEmpresa : selectedEmpresa.nomeEmpresa,
+				empresaId: tipo === "cliente" ? selectedEmpresa.id : null,
+				status: tipo === "cliente" ? "pending" : "approved",
 				dataCriacao: new Date().toISOString(),
 			});
 
@@ -138,7 +182,7 @@ export default function RegisterScreen() {
 						/>
 					</View>
 
-					{tipo === "empresa" && (
+					{tipo === "empresa" ? (
 						<View style={styles.inputGroup}>
 							<Text style={[styles.label, { color: colors.textPrimary }]}>
 								Nome da empresa
@@ -157,6 +201,50 @@ export default function RegisterScreen() {
 								placeholder="Digite o nome da empresa"
 								placeholderTextColor={colors.textSecondary}
 							/>
+						</View>
+					) : (
+						<View style={styles.inputGroup}>
+							<Text style={[styles.label, { color: colors.textPrimary }]}>
+								Empresa
+							</Text>
+							<View style={styles.searchContainer}>
+								<TextInput
+									style={[
+										styles.searchInput,
+										{
+											backgroundColor: colors.background50,
+											borderColor: colors.border,
+											color: colors.textPrimary,
+										},
+									]}
+									value={searchQuery}
+									onChangeText={(text) => {
+										setSearchQuery(text);
+										setShowResults(true);
+									}}
+									placeholder="Busque sua empresa"
+									placeholderTextColor={colors.textSecondary}
+									onFocus={() => setShowResults(true)}
+								/>
+								{showResults && empresas.length > 0 && (
+									<View style={[styles.resultsContainer, { backgroundColor: colors.background50 }]}>
+										<FlatList
+											data={empresas}
+											keyExtractor={(item) => item.id}
+											renderItem={({ item }) => (
+												<TouchableOpacity
+													style={styles.resultItem}
+													onPress={() => handleSelectEmpresa(item)}
+												>
+													<Text style={[styles.resultText, { color: colors.textPrimary }]}>
+														{item.nomeEmpresa}
+													</Text>
+												</TouchableOpacity>
+											)}
+										/>
+									</View>
+								)}
+							</View>
 						</View>
 					)}
 
@@ -442,5 +530,43 @@ const styles = StyleSheet.create({
 	buttonText: {
 		fontSize: 18,
 		fontWeight: "bold",
+	},
+	searchContainer: {
+		width: "100%",
+		position: "relative",
+		zIndex: 1,
+	},
+	searchInput: {
+		width: "100%",
+		height: 48,
+		borderWidth: 1.5,
+		borderRadius: 24,
+		paddingHorizontal: 20,
+		fontSize: 16,
+	},
+	resultsContainer: {
+		position: "absolute",
+		top: "100%",
+		left: 0,
+		right: 0,
+		maxHeight: 200,
+		borderRadius: 12,
+		marginTop: 4,
+		shadowColor: "#000",
+		shadowOffset: {
+			width: 0,
+			height: 2,
+		},
+		shadowOpacity: 0.25,
+		shadowRadius: 3.84,
+		elevation: 5,
+	},
+	resultItem: {
+		padding: 12,
+		borderBottomWidth: 1,
+		borderBottomColor: "rgba(0,0,0,0.1)",
+	},
+	resultText: {
+		fontSize: 16,
 	},
 });

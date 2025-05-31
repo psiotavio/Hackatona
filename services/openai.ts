@@ -1,7 +1,7 @@
 import OpenAI from 'openai';
 
 // TODO: Mover para variáveis de ambiente
-const OPENAI_API_KEY = 'sua-chave-api-aqui';
+const OPENAI_API_KEY = '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';
 
 const openai = new OpenAI({
   apiKey: OPENAI_API_KEY,
