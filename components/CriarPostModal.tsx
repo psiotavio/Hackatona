@@ -14,12 +14,13 @@ import {
   KeyboardAvoidingView,
   ActivityIndicator,
   Alert,
+  FlatList,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from "../contexts/ThemeContext";
 import { db, auth, storage } from "../services/firebase/firebase.config";
-import { addDoc, collection, doc, getDoc } from "firebase/firestore";
+import { addDoc, collection, doc, getDoc, query, where, getDocs } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { User } from "firebase/auth";
 
@@ -30,14 +31,24 @@ interface CustomUser extends User {
   nomeEmpresa?: string;
 }
 
+interface Usuario {
+  id: string;
+  nome: string;
+  email: string;
+  avatar: any;
+}
+
 interface CustomModalProps {
   visible: boolean;
   onClose: () => void;
   onSubmit: (data: {
     titulo: string;
     descricao: string;
-    imagem?: string;
     link?: string;
+    usuarioMarcado?: {
+      id: string;
+      nome: string;
+    };
   }) => void;
 }
 
@@ -49,135 +60,103 @@ export default function CriarPost({
   const { colors } = useTheme();
   const [titulo, setTitulo] = useState("");
   const [descricao, setDescricao] = useState("");
-  const [imagem, setImagem] = useState("");
   const [link, setLink] = useState("");
   const [anonimo, setAnonimo] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [caracteresRestantes, setCaracteresRestantes] = useState(500);
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [showUsuariosDropdown, setShowUsuariosDropdown] = useState(false);
+  const [usuarioMarcado, setUsuarioMarcado] = useState<Usuario | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     if (visible) {
       setAnonimo(false);
       setTitulo("");
       setDescricao("");
-      setImagem("");
       setLink("");
       setCaracteresRestantes(500);
+      setUsuarioMarcado(null);
+      setSearchTerm("");
+      fetchUsuarios();
     }
   }, [visible]);
 
-  const pickImage = async () => {
+  const fetchUsuarios = async () => {
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permissão negada', 'Desculpe, precisamos de permissão para acessar sua galeria de fotos!');
-        return;
-      }
+      const user = auth.currentUser;
+      if (!user) return;
 
-      if (Platform.OS === 'android') {
-        Alert.alert('Selecionar imagem', 'Escolha de onde você quer selecionar a imagem', [
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Galeria de Fotos', onPress: launchGallery },
-          { text: 'Câmera', onPress: launchCamera },
-        ]);
-      } else {
-        await launchGallery();
-      }
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      if (!userDoc.exists()) return;
+
+      const userData = userDoc.data();
+      const empresaId = userData.tipo === 'empresa' ? user.uid : userData.empresaId;
+
+      if (!empresaId) return;
+
+      const q = query(
+        collection(db, "users"),
+        where("empresaId", "==", empresaId),
+        where("status", "==", "approved")
+      );
+
+      const querySnapshot = await getDocs(q);
+      const usuariosList = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        nome: doc.data().nome,
+        email: doc.data().email,
+        avatar: { uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(doc.data().nome)}&background=8B4513&color=fff` }
+      }));
+
+      setUsuarios(usuariosList);
     } catch (error) {
-      console.error('Erro ao selecionar imagem:', error);
-      Alert.alert('Erro', 'Não foi possível selecionar a imagem');
-      setUploading(false);
+      console.error("Erro ao buscar usuários:", error);
+      Alert.alert("Erro", "Não foi possível carregar a lista de usuários");
     }
-  };
-
-  const launchGallery = async () => {
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.8,
-        selectionLimit: 1,
-      });
-
-      if (!result.canceled) {
-        await processSelectedImage(result.assets[0].uri);
-      }
-    } catch (error) {
-      console.error('Erro ao abrir galeria:', error);
-      Alert.alert('Erro', 'Não foi possível abrir a galeria de fotos');
-    }
-  };
-
-  const launchCamera = async () => {
-    try {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permissão negada', 'Desculpe, precisamos de permissão para acessar sua câmera!');
-        return;
-      }
-
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.8,
-      });
-
-      if (!result.canceled) {
-        await processSelectedImage(result.assets[0].uri);
-      }
-    } catch (error) {
-      console.error('Erro ao abrir câmera:', error);
-      Alert.alert('Erro', 'Não foi possível abrir a câmera');
-    }
-  };
-
-  const processSelectedImage = async (imageUri: string) => {
-    setUploading(true);
-
-    try {
-      const uploadUrl = await uploadImageAsync(imageUri);
-      setImagem(uploadUrl);
-    } catch (e) {
-      console.error(e);
-      Alert.alert('Erro', 'Falha ao fazer upload da imagem');
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const uploadImageAsync = async (uri: string): Promise<string> => {
-    const blob: Blob = await new Promise<Blob>((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.onload = () => resolve(xhr.response as Blob);
-      xhr.onerror = () => reject(new TypeError("Falha na requisição de rede"));
-      xhr.responseType = "blob";
-      xhr.open("GET", uri, true);
-      xhr.send(null);
-    });
-
-    const fileRef = ref(storage, `posts/${new Date().getTime()}`);
-    await uploadBytes(fileRef, blob);
-    if (Platform.OS !== 'web') URL.revokeObjectURL(uri);
-    return await getDownloadURL(fileRef);
   };
 
   useEffect(() => {
     setCaracteresRestantes(500 - descricao.length);
   }, [descricao]);
 
+  const handleDescricaoChange = (text: string) => {
+    // Verifica se o texto começa com "eu", "eu ", "eu acho", "eu acho que", etc.
+    const primeiraPessoaRegex = /^(eu|eu\s|eu\sacho|eu\sacho\sque)/i;
+    if (!primeiraPessoaRegex.test(text) && text.length > 0) {
+      Alert.alert(
+        "Atenção",
+        "O feedback deve ser escrito em primeira pessoa. Comece com 'eu' ou 'eu acho'."
+      );
+      return;
+    }
+
+    // Se o texto exceder o limite, corta na última palavra completa
+    if (text.length > 500) {
+      const ultimaPalavra = text.slice(0, 500).lastIndexOf(' ');
+      if (ultimaPalavra !== -1) {
+        setDescricao(text.slice(0, ultimaPalavra));
+        setCaracteresRestantes(500 - ultimaPalavra);
+      }
+    } else {
+      setDescricao(text);
+      setCaracteresRestantes(500 - text.length);
+    }
+  };
+
   const handleSendFeedback = async ({
     titulo,
     descricao,
-    imagem,
     link,
+    usuarioMarcado,
   }: {
     titulo: string;
     descricao: string;
-    imagem?: string;
     link?: string;
+    usuarioMarcado?: {
+      id: string;
+      nome: string;
+    };
   }) => {
     try {
       setIsLoading(true);
@@ -197,7 +176,6 @@ export default function CriarPost({
       await addDoc(collection(db, "feedback"), {
         titulo,
         descricao,
-        imagem: imagem || null,
         link: link || null,
         createdAt: new Date(),
         userId: anonimo ? null : user?.uid || null,
@@ -205,6 +183,7 @@ export default function CriarPost({
         anonimo,
         empresaId,
         nomeEmpresa,
+        usuarioMarcado: usuarioMarcado || null,
       });
     } catch (error) {
       console.error("Erro ao criar feedback:", error);
@@ -216,12 +195,32 @@ export default function CriarPost({
   const handleSend = () => {
     if (!titulo.trim() || !descricao.trim()) return;
 
-    onSubmit({ titulo, descricao, imagem, link });
-    handleSendFeedback({ titulo, descricao, imagem, link });
+    onSubmit({ 
+      titulo, 
+      descricao, 
+      link,
+      usuarioMarcado: usuarioMarcado ? {
+        id: usuarioMarcado.id,
+        nome: usuarioMarcado.nome
+      } : undefined
+    });
+    handleSendFeedback({ 
+      titulo, 
+      descricao, 
+      link,
+      usuarioMarcado: usuarioMarcado ? {
+        id: usuarioMarcado.id,
+        nome: usuarioMarcado.nome
+      } : undefined
+    });
     onClose();
   };
 
   const isValid = titulo.trim().length > 0 && descricao.trim().length > 0;
+
+  const filteredUsuarios = usuarios.filter(usuario =>
+    usuario.nome.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <Modal animationType="slide" transparent visible={visible} onRequestClose={onClose}>
@@ -254,10 +253,10 @@ export default function CriarPost({
               <Text style={[styles.label, { color: colors.textPrimary }]}>Descrição</Text>
               <TextInput
                 style={[styles.input, styles.textArea, { backgroundColor: colors.background50, borderColor: colors.border, color: colors.textPrimary }]}
-                placeholder="Digite a descrição"
+                placeholder="Comece com 'eu' ou 'eu acho'..."
                 placeholderTextColor={colors.textSecondary}
                 value={descricao}
-                onChangeText={setDescricao}
+                onChangeText={handleDescricaoChange}
                 multiline
                 maxLength={500}
                 textAlignVertical="top"
@@ -267,25 +266,47 @@ export default function CriarPost({
               </Text>
             </View>
 
-            <TouchableOpacity
-              style={[styles.imagePickerButton, { backgroundColor: colors.background, borderColor: colors.border }]}
-              onPress={pickImage}
-              disabled={uploading}
-            >
-              <Ionicons name="image-outline" size={24} color={colors.primary} />
-              <Text style={[styles.imagePickerText, { color: colors.textPrimary }]}>
-                {uploading ? "Enviando imagem..." : imagem ? "Trocar imagem" : "Selecionar imagem da galeria"}
-              </Text>
-            </TouchableOpacity>
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, { color: colors.textPrimary }]}>Marcar Usuário (opcional)</Text>
+              <TouchableOpacity
+                style={[styles.usuarioSelector, { backgroundColor: colors.background50, borderColor: colors.border }]}
+                onPress={() => setShowUsuariosDropdown(!showUsuariosDropdown)}
+              >
+                <Text style={[styles.usuarioSelectorText, { color: usuarioMarcado ? colors.textPrimary : colors.textSecondary }]}>
+                  {usuarioMarcado ? usuarioMarcado.nome : "Selecione um usuário"}
+                </Text>
+                <Ionicons name={showUsuariosDropdown ? "chevron-up" : "chevron-down"} size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
 
-            {imagem ? (
-              <View style={styles.imagePreviewContainer}>
-                <Image source={{ uri: imagem }} style={styles.imagePreview} resizeMode="cover" />
-                <TouchableOpacity style={styles.removeImageButton} onPress={() => setImagem("")}>
-                  <Ionicons name="close-circle" size={24} color={colors.primary} />
-                </TouchableOpacity>
-              </View>
-            ) : null}
+              {showUsuariosDropdown && (
+                <View style={[styles.dropdownContainer, { backgroundColor: colors.background50, borderColor: colors.border }]}>
+                  <TextInput
+                    style={[styles.searchInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.textPrimary }]}
+                    placeholder="Buscar usuário..."
+                    placeholderTextColor={colors.textSecondary}
+                    value={searchTerm}
+                    onChangeText={setSearchTerm}
+                  />
+                  <FlatList
+                    data={filteredUsuarios}
+                    keyExtractor={(item) => item.id}
+                    renderItem={({ item }) => (
+                      <TouchableOpacity
+                        style={[styles.usuarioItem, { borderBottomColor: colors.border }]}
+                        onPress={() => {
+                          setUsuarioMarcado(item);
+                          setShowUsuariosDropdown(false);
+                          setSearchTerm("");
+                        }}
+                      >
+                        <Text style={[styles.usuarioItemText, { color: colors.textPrimary }]}>{item.nome}</Text>
+                      </TouchableOpacity>
+                    )}
+                    style={styles.usuariosList}
+                  />
+                </View>
+              )}
+            </View>
 
             <View style={styles.inputGroup}>
               <Text style={[styles.label, { color: colors.textPrimary }]}>Link (opcional)</Text>
@@ -361,25 +382,45 @@ const styles = StyleSheet.create({
   },
   textArea: { height: 120, paddingTop: 12, paddingBottom: 12 },
   charCount: { fontSize: 12, marginTop: 4, textAlign: "right" },
-  imagePickerButton: {
+  usuarioSelector: {
     width: "100%",
     height: 48,
-    borderWidth: 1.5,
-    borderRadius: 24,
-    paddingHorizontal: 20,
-    marginBottom: 16,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 16,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
   },
-  imagePickerText: { fontSize: 16, marginLeft: 12 },
-  imagePreviewContainer: { position: "relative", marginBottom: 16 },
-  imagePreview: { width: "100%", height: 200, borderRadius: 12 },
-  removeImageButton: {
+  usuarioSelectorText: {
+    fontSize: 16,
+  },
+  dropdownContainer: {
     position: "absolute",
-    top: 8,
-    right: 8,
-    backgroundColor: "rgba(255,255,255,0.8)",
-    borderRadius: 15,
+    top: 100,
+    left: 0,
+    right: 0,
+    borderWidth: 1,
+    borderRadius: 12,
+    zIndex: 1000,
+    maxHeight: 200,
+  },
+  searchInput: {
+    height: 40,
+    borderWidth: 1,
+    borderRadius: 8,
+    margin: 8,
+    paddingHorizontal: 12,
+  },
+  usuariosList: {
+    maxHeight: 150,
+  },
+  usuarioItem: {
+    padding: 12,
+    borderBottomWidth: 1,
+  },
+  usuarioItemText: {
+    fontSize: 16,
   },
   anonimoContainer: {
     flexDirection: "row",

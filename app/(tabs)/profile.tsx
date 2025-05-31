@@ -532,129 +532,131 @@ export default function ProfileScreen() {
   }
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>  
-      <View style={styles.profileHeaderCentered}>
-        <Image
-          source={userData?.photoURL ? { uri: userData.photoURL } : getAvatarUri(userData?.name || 'Usuário')}
-          style={styles.avatarLarge}
-        />
-        <Text style={[styles.nameCentered, { color: colors.titlePrimary }]}>{userData?.nome || 'Usuário'}</Text>
-        <Text style={[styles.companyCentered, { color: colors.textSecondary }]}>{userData?.nomeEmpresa || 'Empresa não informada'}</Text>
-        <View style={[styles.pointsContainer, { backgroundColor: colors.background50 }]}>
-          <Ionicons name="trophy" size={20} color={colors.warning} />
-          <View>
-            <Text style={[styles.pointsText, { color: colors.textPrimary }]}>
-              {userPoints.toLocaleString()} pontos
-            </Text>
-            <Text style={[styles.maximoDiarioTexto, { color: colors.textSecondary }]}>
-              Máximo diário: <Text style={{ color: colors.success, fontWeight: 'bold' }}>{maximoPontosPorDia.toLocaleString()} pts</Text>
-            </Text>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <ScrollView style={styles.scrollView}>  
+        <View style={styles.profileHeaderCentered}>
+          <Image
+            source={userData?.photoURL ? { uri: userData.photoURL } : getAvatarUri(userData?.name || 'Usuário')}
+            style={styles.avatarLarge}
+          />
+          <Text style={[styles.nameCentered, { color: colors.titlePrimary }]}>{userData?.nome || 'Usuário'}</Text>
+          <Text style={[styles.companyCentered, { color: colors.textSecondary }]}>{userData?.nomeEmpresa || 'Empresa não informada'}</Text>
+          <View style={[styles.pointsContainer, { backgroundColor: colors.background50 }]}>
+            <Ionicons name="trophy" size={20} color={colors.warning} />
+            <View>
+              <Text style={[styles.pointsText, { color: colors.textPrimary }]}>
+                {userPoints.toLocaleString()} pontos
+              </Text>
+              <Text style={[styles.maximoDiarioTexto, { color: colors.textSecondary }]}>
+                Máximo diário: <Text style={{ color: colors.success, fontWeight: 'bold' }}>{maximoPontosPorDia.toLocaleString()} pts</Text>
+              </Text>
+            </View>
+          </View>
+          <View style={styles.buttonRow}>
+            <TouchableOpacity style={styles.editTextButton}>
+              <Text style={[styles.editText, { color: colors.textSecondary }]}>Editar</Text>
+            </TouchableOpacity>
+            {isEmpresa && (
+              <TouchableOpacity 
+                style={[styles.adminButton, { backgroundColor: colors.primary }]}
+                onPress={() => {
+                  setIsAdminModalVisible(true);
+                  carregarSolicitacoes();
+                }}
+              >
+                <Ionicons name="cog-outline" size={20} color={colors.background} />
+                <Text style={[styles.adminText, { color: colors.background }]}>Admin</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity 
+              style={[styles.logoutButton, { backgroundColor: colors.primary }]}
+              onPress={handleLogout}
+            >
+              <Ionicons name="log-out-outline" size={20} color={colors.background} />
+              <Text style={[styles.logoutText, { color: colors.background }]}>Sair</Text>
+            </TouchableOpacity>
           </View>
         </View>
-        <View style={styles.buttonRow}>
-          <TouchableOpacity style={styles.editTextButton}>
-            <Text style={[styles.editText, { color: colors.textSecondary }]}>Editar</Text>
-          </TouchableOpacity>
-          {isEmpresa && (
-            <TouchableOpacity 
-              style={[styles.adminButton, { backgroundColor: colors.primary }]}
-              onPress={() => {
-                setIsAdminModalVisible(true);
-                carregarSolicitacoes();
-              }}
-            >
-              <Ionicons name="cog-outline" size={20} color={colors.background} />
-              <Text style={[styles.adminText, { color: colors.background }]}>Admin</Text>
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity 
-            style={[styles.logoutButton, { backgroundColor: colors.primary }]}
-            onPress={handleLogout}
-          >
-            <Ionicons name="log-out-outline" size={20} color={colors.background} />
-            <Text style={[styles.logoutText, { color: colors.background }]}>Sair</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-      <View style={styles.tabRowCentered}>
-        <Pressable
-          style={[styles.tabButtonCentered, tab === 'posts' && { borderBottomColor: colors.titlePrimary, borderBottomWidth: 2 }]}
-          onPress={() => tab !== 'posts' && handleTabChange('posts')}
-        >
-          <Text style={[styles.tabTextCentered, { color: tab === 'posts' ? colors.titlePrimary : colors.textSecondary }]}>Posts</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.tabButtonCentered, tab === 'feedbacks' && { borderBottomColor: colors.titlePrimary, borderBottomWidth: 2 }]}
-          onPress={() => tab !== 'feedbacks' && handleTabChange('feedbacks')}
-        >
-          <Text style={[styles.tabTextCentered, { color: tab === 'feedbacks' ? colors.titlePrimary : colors.textSecondary }]}>Feedbacks</Text>
-        </Pressable>
-        {isEmpresa && (
+        <View style={styles.tabRowCentered}>
           <Pressable
-            style={[styles.tabButtonCentered, tab === 'public' && { borderBottomColor: colors.titlePrimary, borderBottomWidth: 2 }]}
-            onPress={() => tab !== 'public' && handleTabChange('public')}
+            style={[styles.tabButtonCentered, tab === 'posts' && { borderBottomColor: colors.titlePrimary, borderBottomWidth: 2 }]}
+            onPress={() => tab !== 'posts' && handleTabChange('posts')}
           >
-            <Text style={[styles.tabTextCentered, { color: tab === 'public' ? colors.titlePrimary : colors.textSecondary }]}>Público</Text>
+            <Text style={[styles.tabTextCentered, { color: tab === 'posts' ? colors.titlePrimary : colors.textSecondary }]}>Posts</Text>
           </Pressable>
-        )}
-      </View>
-      <Animated.View style={{ opacity: fadeAnim }}>
-        {tab === 'posts' ? (
-          <>
-            <Text style={[styles.sectionTitleCentered, { color: colors.titlePrimary }]}>Meus Posts</Text>
-            {posts.length > 0 ? (
-              posts.map(post => (
-                <ProfileCard key={post.id} {...post} />
-              ))
-            ) : (
-              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Você ainda não tem posts</Text>
-            )}
-          </>
-        ) : tab === 'feedbacks' ? (
-          <>
-            <Text style={[styles.sectionTitleCentered, { color: colors.titlePrimary }]}>Meus Feedbacks</Text>
-            {feedbacks.length > 0 ? (
-              feedbacks.map(feedback => (
-                <ProfileCard key={feedback.id} {...feedback} />
-              ))
-            ) : (
-              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Você ainda não tem feedbacks</Text>
-            )}
-          </>
-        ) : (
-          <>
-            <Text style={[styles.sectionTitleCentered, { color: colors.titlePrimary }]}>Perguntas Públicas</Text>
-            {publicQuestions.length > 0 ? (
-              publicQuestions.map((question, index) => (
-                <TouchableOpacity
-                  key={question.id}
-                  style={[styles.publicQuestionCard, { backgroundColor: colors.background50 }]}
-                  onPress={() => router.push(`/public-question?id=${question.id}`)}
-                >
-                  <Text style={[styles.questionText, { color: colors.textPrimary }]}>{question.question}</Text>
-                  <Text style={[styles.responsesCount, { color: colors.textSecondary }]}>
-                    {question.responses?.length || 0} respostas
-                  </Text>
-                  {question.responses?.length > 0 && (
-                    <View style={[styles.lastResponse, { backgroundColor: colors.background }]}>
-                      <Text style={[styles.lastResponseText, { color: colors.textSecondary }]}>
-                        Última resposta: {question.responses[question.responses.length - 1].isAnonimo ? 'Anônimo' : question.responses[question.responses.length - 1].userName || 'Usuário'}
-                      </Text>
-                    </View>
-                  )}
-                  <Text style={[styles.questionDate, { color: colors.textSecondary }]}>
-                    {new Date(question.createdAt).toLocaleDateString()}
-                  </Text>
-                </TouchableOpacity>
-              ))
-            ) : (
-              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                Você ainda não tem perguntas públicas
-              </Text>
-            )}
-          </>
-        )}
-      </Animated.View>
+          <Pressable
+            style={[styles.tabButtonCentered, tab === 'feedbacks' && { borderBottomColor: colors.titlePrimary, borderBottomWidth: 2 }]}
+            onPress={() => tab !== 'feedbacks' && handleTabChange('feedbacks')}
+          >
+            <Text style={[styles.tabTextCentered, { color: tab === 'feedbacks' ? colors.titlePrimary : colors.textSecondary }]}>Feedbacks</Text>
+          </Pressable>
+          {isEmpresa && (
+            <Pressable
+              style={[styles.tabButtonCentered, tab === 'public' && { borderBottomColor: colors.titlePrimary, borderBottomWidth: 2 }]}
+              onPress={() => tab !== 'public' && handleTabChange('public')}
+            >
+              <Text style={[styles.tabTextCentered, { color: tab === 'public' ? colors.titlePrimary : colors.textSecondary }]}>Público</Text>
+            </Pressable>
+          )}
+        </View>
+        <Animated.View style={{ opacity: fadeAnim }}>
+          {tab === 'posts' ? (
+            <>
+              <Text style={[styles.sectionTitleCentered, { color: colors.titlePrimary }]}>Meus Posts</Text>
+              {posts.length > 0 ? (
+                posts.map(post => (
+                  <ProfileCard key={post.id} {...post} />
+                ))
+              ) : (
+                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Você ainda não tem posts</Text>
+              )}
+            </>
+          ) : tab === 'feedbacks' ? (
+            <>
+              <Text style={[styles.sectionTitleCentered, { color: colors.titlePrimary }]}>Meus Feedbacks</Text>
+              {feedbacks.length > 0 ? (
+                feedbacks.map(feedback => (
+                  <ProfileCard key={feedback.id} {...feedback} />
+                ))
+              ) : (
+                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Você ainda não tem feedbacks</Text>
+              )}
+            </>
+          ) : (
+            <>
+              <Text style={[styles.sectionTitleCentered, { color: colors.titlePrimary }]}>Perguntas Públicas</Text>
+              {publicQuestions.length > 0 ? (
+                publicQuestions.map((question, index) => (
+                  <TouchableOpacity
+                    key={question.id}
+                    style={[styles.publicQuestionCard, { backgroundColor: colors.background50 }]}
+                    onPress={() => router.push(`/public-question?id=${question.id}`)}
+                  >
+                    <Text style={[styles.questionText, { color: colors.textPrimary }]}>{question.question}</Text>
+                    <Text style={[styles.responsesCount, { color: colors.textSecondary }]}>
+                      {question.responses?.length || 0} respostas
+                    </Text>
+                    {question.responses?.length > 0 && (
+                      <View style={[styles.lastResponse, { backgroundColor: colors.background }]}>
+                        <Text style={[styles.lastResponseText, { color: colors.textSecondary }]}>
+                          Última resposta: {question.responses[question.responses.length - 1].isAnonimo ? 'Anônimo' : question.responses[question.responses.length - 1].userName || 'Usuário'}
+                        </Text>
+                      </View>
+                    )}
+                    <Text style={[styles.questionDate, { color: colors.textSecondary }]}>
+                      {new Date(question.createdAt).toLocaleDateString()}
+                    </Text>
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                  Você ainda não tem perguntas públicas
+                </Text>
+              )}
+            </>
+          )}
+        </Animated.View>
+      </ScrollView>
 
       {isEmpresa && (
         <TouchableOpacity
@@ -836,13 +838,14 @@ export default function ProfileScreen() {
           </View>
         </View>
       </Modal>
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    position: 'relative',
   },
   profileHeaderCentered: {
     alignItems: 'center',
@@ -1065,6 +1068,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
+    zIndex: 1000,
   },
   publicQuestionCard: {
     marginHorizontal: 16,
@@ -1147,5 +1151,8 @@ const styles = StyleSheet.create({
   lastResponseText: {
     fontSize: 12,
     fontStyle: 'italic',
+  },
+  scrollView: {
+    flex: 1,
   },
 }); 

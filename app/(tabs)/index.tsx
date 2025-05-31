@@ -54,6 +54,10 @@ interface Post {
   comments: number;
   allFeedbacks: Feedback[];
   topFeedback?: Feedback;
+  usuarioMarcado?: {
+    id: string;
+    nome: string;
+  };
 }
 
 export default function HomeScreen() {
@@ -119,7 +123,13 @@ export default function HomeScreen() {
       if (!userDoc.exists()) return;
 
       const userData = userDoc.data();
-      const empresaId = userData.empresaId;
+      // Se for empresa, usa o próprio uid, senão usa o empresaId
+      const empresaId = userData.tipo === 'empresa' ? user.uid : userData.empresaId;
+
+      if (!empresaId) {
+        console.log("EmpresaId não encontrado");
+        return;
+      }
 
       // Buscar posts relacionados à empresa
       const postsQuery = query(
@@ -132,6 +142,7 @@ export default function HomeScreen() {
       const unsubscribe = onSnapshot(postsQuery, (snapshot) => {
         const posts = snapshot.docs.map(doc => {
           const data = doc.data();
+          console.log("Post data:", data); // Log para debug
           const allFeedbacks = data.allFeedbacks?.map((feedback: any) => ({
             ...feedback,
             isLiked: false
@@ -160,15 +171,17 @@ export default function HomeScreen() {
             description: data.descricao,
             image: data.imagem,
             link: data.link,
-            likes: 0,
+            likes: data.likes || 0,
             isLiked: false,
             isFavorite: false,
             comments: allFeedbacks.length,
             allFeedbacks,
-            topFeedback
+            topFeedback,
+            usuarioMarcado: data.usuarioMarcado || undefined
           };
         });
 
+        console.log("Posts encontrados:", posts.length); // Log para debug
         setTimeData(posts);
         setEmpresaData(posts);
       }, (error) => {
@@ -420,6 +433,15 @@ export default function HomeScreen() {
                 />
               </TouchableOpacity>
             </View>
+            
+            {tarefa.usuarioMarcado && (
+              <View style={styles.usuarioMarcadoContainer}>
+                <Ionicons name="at" size={16} color={colors.primary} />
+                <Text style={[styles.usuarioMarcadoText, { color: colors.primary }]}>
+                  {tarefa.usuarioMarcado.nome}
+                </Text>
+              </View>
+            )}
             
             <Text style={[styles.cardDescription, { color: colors.textSecondary }]}>{tarefa.description}</Text>
             
@@ -768,5 +790,16 @@ const styles = StyleSheet.create({
   maximoDiarioTexto: {
     fontSize: 13,
     marginTop: 2,
+  },
+  usuarioMarcadoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  usuarioMarcadoText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
 }); 
