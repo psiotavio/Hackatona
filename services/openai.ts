@@ -1,7 +1,7 @@
 import OpenAI from 'openai';
+import Constants from 'expo-constants';
 
-// TODO: Mover para variáveis de ambiente
-const OPENAI_API_KEY = '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';
+const OPENAI_API_KEY = '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';
 
 const openai = new OpenAI({
   apiKey: OPENAI_API_KEY,

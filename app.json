@@ -50,7 +50,8 @@
       "router": {},
       "eas": {
         "projectId": "945b1ef3-a36c-4546-afc1-20ab2a0f5857"
-      }
+      },
+      "openaiApiKey": "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"
     }
   }
 }

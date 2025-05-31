@@ -574,7 +574,8 @@ export default function HomeScreen() {
                 style={styles.actionButton}
                 onPress={(e) => {
                   e.stopPropagation();
-                  handleComments(item.id);
+                  setSelectedPostContent(item.description);
+                  setIsChatModalVisible(true);
                 }}
               >
                 <Ionicons name="chatbubble-outline" size={22} color={colors.primary} />
