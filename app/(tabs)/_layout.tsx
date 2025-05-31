@@ -55,10 +55,14 @@ export default function TabLayout() {
   // Configuração comum para todas as abas
   const commonScreenOptions = {
     tabBarActiveTintColor: colors.primary,
-    tabBarInactiveTintColor: colors.textSecondary,
+    tabBarInactiveTintColor: colors.background20,
     tabBarStyle: {
       backgroundColor: colors.background,
       borderTopColor: colors.border,
+    },
+    tabBarIndicatorStyle: {
+      height: 30,
+      backgroundColor: colors.secondary,
     },
     headerStyle: {
       backgroundColor: colors.background,
@@ -95,6 +99,7 @@ export default function TabLayout() {
           name="loja"
           options={{
             title: 'Loja',
+            headerShown: false,
             tabBarIcon: ({ color }) => <TabBarIcon name="shopping-bag" color={color} />,
           }}
         />
@@ -102,6 +107,7 @@ export default function TabLayout() {
           name="criarpost"
           options={{
             title: 'Criar',
+            headerShown: false,
             tabBarIcon: ({ color }) => <TabBarIcon name="plus-circle" color={color} />,
           }}
         />
@@ -109,6 +115,7 @@ export default function TabLayout() {
           name="profile"
           options={{
             title: 'Perfil',
+            headerShown: false,
             tabBarIcon: ({ color }) => <TabBarIcon name="user" color={color} />,
           }}
         />
@@ -131,6 +138,7 @@ export default function TabLayout() {
         name="loja"
         options={{
           title: 'Loja',
+          headerShown: false,
           tabBarIcon: ({ color }) => <TabBarIcon name="shopping-bag" color={color} />,
         }}
       />
@@ -138,6 +146,7 @@ export default function TabLayout() {
         name="criarpost"
         options={{
           title: 'Criar',
+          headerShown: false,
           tabBarIcon: ({ color }) => <TabBarIcon name="plus-circle" color={color} />,
         }}
       />
@@ -145,6 +154,7 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Perfil',
+          headerShown: false,
           tabBarIcon: ({ color }) => <TabBarIcon name="user" color={color} />,
         }}
       />

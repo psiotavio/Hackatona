@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import CriarPost from '@/components/CriarPostModal';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
+import Header from '../components/Header';
 
 export default function CriarPostScreen() {
   const [modalVisible, setModalVisible] = useState(false);
@@ -24,9 +25,7 @@ export default function CriarPostScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar style="dark" />
       
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Criar Publicação</Text>
-      </View>
+      <Header  />
       
       <View style={styles.content}>
         <TouchableOpacity 

@@ -32,6 +32,7 @@ function RootLayoutNav() {
         backgroundColor={navigationTheme.colors.background}
       />  
       <Stack
+        initialRouteName="welcome"
         screenOptions={{
           headerStyle: {
             backgroundColor: navigationTheme.colors.background,

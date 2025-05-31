@@ -11,6 +11,7 @@ import {
   Animated,
   Share,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -18,8 +19,9 @@ import { useRouter } from 'expo-router';
 import { ChatModal } from '@/components/ChatModal';
 import { useTheme } from '@/contexts/ThemeContext';
 import { db, auth } from '@/services/firebase/firebase.config';
-import { collection, query, where, orderBy, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, doc, getDoc, getDocs } from 'firebase/firestore';
 import { observarPontosUsuario, calcularMaximoPontosPorDia } from '@/services/firebase/fetchMaxPoints';
+import Header from '../components/Header';
 
 // Função para gerar avatar com as iniciais do nome
 const getAvatarUri = (name: string) => {
@@ -58,16 +60,20 @@ interface Post {
     id: string;
     nome: string;
   };
+  userId: string;
+  tipo: string;
+  empresaId: string;
 }
 
 export default function HomeScreen() {
-  const [activeTab, setActiveTab] = useState('time');
+  const [activeTab, setActiveTab] = useState('empresa');
   const [timeData, setTimeData] = useState<Post[]>([]);
-  const [empresaData, setEmpresaData] = useState<Post[]>([]);
+  const [empresaData, setEmpresaData] = useState<any[]>([]); // Agora será array de usuários
   const [isChatModalVisible, setIsChatModalVisible] = useState(false);
   const [selectedPostContent, setSelectedPostContent] = useState('');
   const [userPoints, setUserPoints] = useState(0);
   const [maximoPontosPorDia, setMaximoPontosPorDia] = useState<number>(0);
+  const [refreshing, setRefreshing] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
   const router = useRouter();
   const { colors } = useTheme();
@@ -112,6 +118,30 @@ export default function HomeScreen() {
     };
   }, []);
 
+  // Função para buscar os membros da empresa
+  const fetchEmpresaMembers = async (empresaId: string) => {
+    try {
+      const q = query(
+        collection(db, "users"),
+        where("empresaId", "==", empresaId),
+        where("status", "==", "approved")
+      );
+
+      const querySnapshot = await getDocs(q);
+      const members = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        avatar: { uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(doc.data().nome)}&background=8B4513&color=fff` }
+      }));
+
+      console.log("Membros da empresa encontrados:", members.length);
+      setEmpresaData(members);
+    } catch (error) {
+      console.error("Erro ao buscar membros da empresa:", error);
+      Alert.alert("Erro", "Não foi possível carregar os membros da empresa");
+    }
+  };
+
   // Função para buscar os posts do feed
   const fetchFeedPosts = async () => {
     try {
@@ -131,6 +161,9 @@ export default function HomeScreen() {
         return;
       }
 
+      // Buscar membros da empresa
+      await fetchEmpresaMembers(empresaId);
+
       // Buscar posts relacionados à empresa
       const postsQuery = query(
         collection(db, "feedback"),
@@ -142,7 +175,13 @@ export default function HomeScreen() {
       const unsubscribe = onSnapshot(postsQuery, (snapshot) => {
         const posts = snapshot.docs.map(doc => {
           const data = doc.data();
-          console.log("Post data:", data); // Log para debug
+          console.log("Post data completo:", {
+            id: doc.id,
+            ...data,
+            empresaId,
+            userData
+          });
+
           const allFeedbacks = data.allFeedbacks?.map((feedback: any) => ({
             ...feedback,
             isLiked: false
@@ -151,9 +190,7 @@ export default function HomeScreen() {
           // Determinar o topFeedback
           let topFeedback: Feedback | undefined;
           if (allFeedbacks.length > 0) {
-            // Primeiro ordena por número de curtidas (decrescente)
             const sortedByLikes = [...allFeedbacks].sort((a, b) => b.likes - a.likes);
-            // Se houver empate no número de curtidas, pega o mais recente
             const maxLikes = sortedByLikes[0].likes;
             const topLikedFeedbacks = sortedByLikes.filter(f => f.likes === maxLikes);
             topFeedback = topLikedFeedbacks.sort((a, b) => 
@@ -177,13 +214,15 @@ export default function HomeScreen() {
             comments: allFeedbacks.length,
             allFeedbacks,
             topFeedback,
-            usuarioMarcado: data.usuarioMarcado || undefined
+            usuarioMarcado: data.usuarioMarcado || undefined,
+            userId: data.userId,
+            tipo: data.tipo,
+            empresaId: data.empresaId
           };
         });
 
-        console.log("Posts encontrados:", posts.length); // Log para debug
+        console.log("Total de posts encontrados:", posts.length);
         setTimeData(posts);
-        setEmpresaData(posts);
       }, (error) => {
         console.error("Erro ao observar posts:", error);
         Alert.alert("Erro", "Não foi possível carregar os posts em tempo real");
@@ -196,6 +235,17 @@ export default function HomeScreen() {
     }
   };
 
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await fetchFeedPosts();
+    } catch (error) {
+      console.error("Erro ao atualizar posts:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
 
@@ -205,7 +255,6 @@ export default function HomeScreen() {
 
     setupFeed();
 
-    // Limpar o listener quando o componente for desmontado
     return () => {
       if (unsubscribe) {
         unsubscribe();
@@ -240,7 +289,7 @@ export default function HomeScreen() {
     } else {
       setEmpresaData(prev => prev.map(card => {
         if (isFromFeedback) {
-          const updatedFeedbacks = card.allFeedbacks.map(feedback => {
+          const updatedFeedbacks = card.allFeedbacks.map((feedback: Feedback) => {
             if (feedback.id === cardId) {
               return {
                 ...feedback,
@@ -348,7 +397,10 @@ export default function HomeScreen() {
     }
   };
 
-  const renderCard = (tarefa: Post, index: number) => {
+  // Seleciona o conjunto de dados correto com base na aba ativa
+  const currentData = activeTab === 'empresa' ? timeData : empresaData;
+
+  const renderCard = (item: any, index: number) => {
     const cardHeight = 200;
     const position = index * cardHeight;
     
@@ -371,9 +423,52 @@ export default function HomeScreen() {
       extrapolate: 'clamp',
     });
 
+    if (activeTab === 'time') {
+      // Renderizar card de membro da empresa
+      return (
+        <Animated.View 
+          key={item.id} 
+          style={[
+            styles.cardContainer,
+            { 
+              transform: [
+                { scale },
+                { translateY }
+              ] 
+            }
+          ]}
+        >
+          <View style={[styles.card, { backgroundColor: colors.background50 }]}>
+            <View style={styles.cardHeader}>
+              <View style={styles.authorContainer}>
+                <Image source={item.avatar} style={styles.avatar} />
+                <View>
+                  <Text 
+                    style={[styles.authorName, { color: colors.titlePrimary }]}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
+                    {item.nome}
+                  </Text>
+                  <Text 
+                    style={[styles.authorEmail, { color: colors.textSecondary }]}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
+                    {item.email}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        </Animated.View>
+      );
+    }
+
+    // Renderizar card de post (aba Empresa)
     return (
       <Animated.View 
-        key={tarefa.id} 
+        key={item.id} 
         style={[
           styles.cardContainer,
           { 
@@ -389,20 +484,20 @@ export default function HomeScreen() {
           onPress={() => router.push({
             pathname: '/card-details',
             params: { 
-              cardId: tarefa.id,
+              cardId: item.id,
               cardType: activeTab,
               cardData: JSON.stringify({
-                id: tarefa.id,
-                author: tarefa.author,
-                title: tarefa.title,
-                description: tarefa.description,
-                image: tarefa.image,
-                link: tarefa.link,
-                likes: tarefa.likes,
-                isLiked: tarefa.isLiked,
-                isFavorite: tarefa.isFavorite,
-                comments: tarefa.comments,
-                allFeedbacks: tarefa.allFeedbacks
+                id: item.id,
+                author: item.author,
+                title: item.title,
+                description: item.description,
+                image: item.image,
+                link: item.link,
+                likes: item.likes,
+                isLiked: item.isLiked,
+                isFavorite: item.isFavorite,
+                comments: item.comments,
+                allFeedbacks: item.allFeedbacks
               })
             }
           })}
@@ -410,75 +505,75 @@ export default function HomeScreen() {
           <View style={[styles.card, { backgroundColor: colors.background50 }]}>
             <View style={styles.cardHeader}>
               <View style={styles.authorContainer}>
-                <Image source={tarefa.author.avatar} style={styles.avatar} />
+                <Image source={item.author.avatar} style={styles.avatar} />
                 <Text 
                   style={[styles.authorName, { color: colors.titlePrimary }]}
                   numberOfLines={1}
                   ellipsizeMode="tail"
                 >
-                  {tarefa.title}
+                  {item.title}
                 </Text>
               </View>
               <TouchableOpacity 
                 style={styles.bookmarkButton}
                 onPress={(e) => {
                   e.stopPropagation();
-                  handleFavorite(tarefa.id);
+                  handleFavorite(item.id);
                 }}
               >
                 <Ionicons 
-                  name={tarefa.isFavorite ? "bookmark" : "bookmark-outline"} 
+                  name={item.isFavorite ? "bookmark" : "bookmark-outline"} 
                   size={24} 
                   color={colors.primary} 
                 />
               </TouchableOpacity>
             </View>
             
-            {tarefa.usuarioMarcado && (
+            {item.usuarioMarcado && (
               <View style={styles.usuarioMarcadoContainer}>
                 <Ionicons name="at" size={16} color={colors.primary} />
                 <Text style={[styles.usuarioMarcadoText, { color: colors.primary }]}>
-                  {tarefa.usuarioMarcado.nome}
+                  {item.usuarioMarcado.nome}
                 </Text>
               </View>
             )}
             
-            <Text style={[styles.cardDescription, { color: colors.textSecondary }]}>{tarefa.description}</Text>
+            <Text style={[styles.cardDescription, { color: colors.textSecondary }]}>{item.description}</Text>
             
             <View style={styles.cardActions}>
               <TouchableOpacity 
                 style={styles.actionButton}
                 onPress={(e) => {
                   e.stopPropagation();
-                  handleLike(tarefa.id);
+                  handleLike(item.id);
                 }}
               >
                 <Ionicons 
-                  name={tarefa.isLiked ? "heart" : "heart-outline"} 
+                  name={item.isLiked ? "heart" : "heart-outline"} 
                   size={24} 
                   color={colors.primary} 
                 />
-                {tarefa.likes > 0 && (
-                  <Text style={[styles.likeCount, { color: colors.primary }]}>{tarefa.likes}</Text>
+                {item.likes > 0 && (
+                  <Text style={[styles.likeCount, { color: colors.primary }]}>{item.likes}</Text>
                 )}
               </TouchableOpacity>
               <TouchableOpacity 
                 style={styles.actionButton}
                 onPress={(e) => {
                   e.stopPropagation();
-                  handleComments(tarefa.id);
+                  handleComments(item.id);
                 }}
               >
                 <Ionicons name="chatbubble-outline" size={22} color={colors.primary} />
-                {tarefa.comments > 0 && (
-                  <Text style={[styles.commentCount, { color: colors.primary }]}>{tarefa.comments}</Text>
+                {item.comments > 0 && (
+                  <Text style={[styles.commentCount, { color: colors.primary }]}>{item.comments}</Text>
                 )}
               </TouchableOpacity>
               <TouchableOpacity 
                 style={styles.actionButton}
                 onPress={(e) => {
                   e.stopPropagation();
-                  handleShare(tarefa);
+                  handleShare(item);
                 }}
               >
                 <Ionicons name="paper-plane-outline" size={22} color={colors.primary} />
@@ -488,33 +583,33 @@ export default function HomeScreen() {
         </TouchableOpacity>
         
         <View style={[styles.feedbackContainer, { backgroundColor: colors.background50 }]}>
-          {tarefa.topFeedback ? (
+          {item.topFeedback ? (
             <View style={styles.feedbackContent}>
               <Image 
-                source={tarefa.topFeedback.isAnonimo ? 
+                source={item.topFeedback.isAnonimo ? 
                   getAvatarUri('Anônimo') : 
-                  getAvatarUri(tarefa.topFeedback.userName || 'Usuário')} 
+                  getAvatarUri(item.topFeedback.userName || 'Usuário')} 
                 style={styles.feedbackAvatar} 
               />
               <View style={styles.feedbackTextContainer}>
                 <Text style={[styles.feedbackAuthor, { color: colors.textPrimary }]}>
-                  {tarefa.topFeedback.isAnonimo ? 'Anônimo' : tarefa.topFeedback.userName}
+                  {item.topFeedback.isAnonimo ? 'Anônimo' : item.topFeedback.userName}
                 </Text>
                 <Text style={[styles.feedbackText, { color: colors.textSecondary }]}>
-                  {tarefa.topFeedback.content}
+                  {item.topFeedback.content}
                 </Text>
               </View>
               <TouchableOpacity 
                 style={styles.feedbackLikeButton}
-                onPress={() => handleLike(tarefa.topFeedback!.id, true)}
+                onPress={() => handleLike(item.topFeedback!.id, true)}
               >
                 <Ionicons 
-                  name={tarefa.topFeedback.isLiked ? "heart" : "heart-outline"} 
+                  name={item.topFeedback.isLiked ? "heart" : "heart-outline"} 
                   size={18} 
                   color={colors.primary} 
                 />
                 <Text style={[styles.feedbackLikeCount, { color: colors.primary }]}>
-                  {tarefa.topFeedback.likes}
+                  {item.topFeedback.likes}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -530,72 +625,53 @@ export default function HomeScreen() {
     );
   };
 
-  // Seleciona o conjunto de dados correto com base na aba ativa
-  const currentData = activeTab === 'time' ? timeData : empresaData;
-
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar style={colors.background === '#2C1810' ? 'light' : 'dark'} />
-      
-      {/* Header com abas */}
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <View style={styles.headerLeft}>
-          <Text style={[styles.headerTitle, { color: colors.titlePrimary }]}>Feed</Text>
-          <View style={[styles.pointsContainer, { backgroundColor: colors.background50 }]}>
-            <Ionicons name="trophy" size={20} color={colors.warning} />
-            <View>
-              <Text style={[styles.pointsText, { color: colors.textPrimary }]}>
-                {userPoints.toLocaleString()} pontos
-              </Text>
-              <Text style={[styles.maximoDiarioTexto, { color: colors.textSecondary }]}>
-                Máximo diário: <Text style={{ color: colors.success, fontWeight: 'bold' }}>{maximoPontosPorDia.toLocaleString()} pts</Text>
-              </Text>
-            </View>
-          </View>
-        </View>
-      </View>
+      <Header  pontos={userPoints} maximoPontosPorDia={maximoPontosPorDia} />
       
       {/* Abas de seleção */}
-      <View style={[styles.tabBar, { borderBottomColor: colors.border }]}>
-        <TouchableOpacity 
-          style={[
-            styles.tab, 
-            activeTab === 'time' && { 
-              borderBottomWidth: 2,
-              borderBottomColor: colors.primary
-            }
-          ]}
-          onPress={() => setActiveTab('time')}
-        >
-          <Text 
+      <View style={[styles.tabBar, { borderBottomColor: colors.border }]}> 
+        <View style={styles.tabsWrapper}>
+          <TouchableOpacity 
             style={[
-              styles.tabText, 
-              { color: activeTab === 'time' ? colors.primary : colors.textSecondary }
+              styles.tab, 
+              activeTab === 'empresa' && { 
+                borderBottomWidth: 2,
+                borderBottomColor: colors.primary
+              }
             ]}
+            onPress={() => setActiveTab('empresa')}
           >
-            Time
-          </Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[
-            styles.tab, 
-            activeTab === 'empresa' && { 
-              borderBottomWidth: 2,
-              borderBottomColor: colors.primary
-            }
-          ]}
-          onPress={() => setActiveTab('empresa')}
-        >
-          <Text 
+            <Text 
+              style={[
+                styles.tabText, 
+                { color: activeTab === 'empresa' ? colors.primary : colors.textSecondary }
+              ]}
+            >
+              Empresa
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
             style={[
-              styles.tabText, 
-              { color: activeTab === 'empresa' ? colors.primary : colors.textSecondary }
+              styles.tab, 
+              activeTab === 'time' && { 
+                borderBottomWidth: 2,
+                borderBottomColor: colors.primary
+              }
             ]}
+            onPress={() => setActiveTab('time')}
           >
-            Empresa
-          </Text>
-        </TouchableOpacity>
+            <Text 
+              style={[
+                styles.tabText, 
+                { color: activeTab === 'time' ? colors.primary : colors.textSecondary }
+              ]}
+            >
+              Time
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
       
       {/* Conteúdo principal */}
@@ -606,9 +682,17 @@ export default function HomeScreen() {
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
           { useNativeDriver: true }
         )}
-        scrollEventThrottle={16} // Otimização para manter animações suaves
+        scrollEventThrottle={16}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }
       >
-        {currentData.map((tarefa, index) => renderCard(tarefa, index))}
+        {currentData.map((item, index) => renderCard(item, index))}
         <View style={styles.scrollEndSpacer} />
       </Animated.ScrollView>
       <ChatModal 
@@ -631,16 +715,21 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 8,
     borderBottomWidth: 1,
   },
-  headerLeft: {
+  logo: {
+    width: 44,
+    height: 44,
+    marginRight: 12,
+  },
+  headerContent: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    justifyContent: 'space-between',
   },
   headerTitle: {
     fontSize: 20,
@@ -650,11 +739,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     borderBottomWidth: 1,
     paddingHorizontal: 16,
+    justifyContent: 'center',
+  },
+  tabsWrapper: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '80%',
+    alignSelf: 'center',
   },
   tab: {
     paddingVertical: 12,
-    marginRight: 20,
-    paddingHorizontal: 8,
+    marginHorizontal: 20,
+    paddingHorizontal: 16,
   },
   tabText: {
     fontSize: 16,
@@ -801,5 +898,9 @@ const styles = StyleSheet.create({
   usuarioMarcadoText: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  authorEmail: {
+    fontSize: 14,
+    marginTop: 2,
   },
 }); 

@@ -12,6 +12,8 @@ import QRCode from 'react-native-qrcode-svg';
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
+import Header from '../components/Header';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Função utilitária para gerar avatar
 const getAvatarUri = (name: string) => ({ uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=8B4513&color=fff` });
@@ -532,70 +534,51 @@ export default function ProfileScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView style={styles.scrollView}>  
-        <View style={styles.profileHeaderCentered}>
-          <Image
-            source={userData?.photoURL ? { uri: userData.photoURL } : getAvatarUri(userData?.name || 'Usuário')}
-            style={styles.avatarLarge}
-          />
-          <Text style={[styles.nameCentered, { color: colors.titlePrimary }]}>{userData?.nome || 'Usuário'}</Text>
-          <Text style={[styles.companyCentered, { color: colors.textSecondary }]}>{userData?.nomeEmpresa || 'Empresa não informada'}</Text>
-          <View style={[styles.pointsContainer, { backgroundColor: colors.background50 }]}>
-            <Ionicons name="trophy" size={20} color={colors.warning} />
-            <View>
-              <Text style={[styles.pointsText, { color: colors.textPrimary }]}>
-                {userPoints.toLocaleString()} pontos
-              </Text>
-              <Text style={[styles.maximoDiarioTexto, { color: colors.textSecondary }]}>
-                Máximo diário: <Text style={{ color: colors.success, fontWeight: 'bold' }}>{maximoPontosPorDia.toLocaleString()} pts</Text>
-              </Text>
-            </View>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <Header pontos={userPoints} maximoPontosPorDia={maximoPontosPorDia} />
+      <ScrollView style={styles.scrollView} contentContainerStyle={{ paddingBottom: 100 }}>
+        <View style={styles.profileTopSection}>
+          <View style={styles.avatarWrapper}>
+            <Image
+              source={userData?.photoURL ? { uri: userData.photoURL } : getAvatarUri(userData?.name || 'Usuário')}
+              style={styles.avatarLarge}
+            />
+            <TouchableOpacity style={styles.editAvatarButton}>
+              <Ionicons name="camera" size={20} color={colors.primary} />
+            </TouchableOpacity>
           </View>
-          <View style={styles.buttonRow}>
-            <TouchableOpacity style={styles.editTextButton}>
-              <Text style={[styles.editText, { color: colors.textSecondary }]}>Editar</Text>
-            </TouchableOpacity>
-            {isEmpresa && (
-              <TouchableOpacity 
-                style={[styles.adminButton, { backgroundColor: colors.primary }]}
-                onPress={() => {
-                  setIsAdminModalVisible(true);
-                  carregarSolicitacoes();
-                }}
-              >
-                <Ionicons name="cog-outline" size={20} color={colors.background} />
-                <Text style={[styles.adminText, { color: colors.background }]}>Admin</Text>
+          <View style={styles.userInfoWrapper}>
+            <View style={styles.userNameRow}>
+              <Text style={[styles.nameCentered, { color: colors.titlePrimary }]}>{userData?.nome || 'Usuário'}</Text>
+              <TouchableOpacity style={styles.editTextButton}>
+                <Ionicons name="pencil" size={18} color={colors.textSecondary} />
               </TouchableOpacity>
-            )}
-            <TouchableOpacity 
-              style={[styles.logoutButton, { backgroundColor: colors.primary }]}
-              onPress={handleLogout}
-            >
-              <Ionicons name="log-out-outline" size={20} color={colors.background} />
-              <Text style={[styles.logoutText, { color: colors.background }]}>Sair</Text>
-            </TouchableOpacity>
+            </View>
+            <Text style={[styles.companyCentered, { color: colors.textSecondary }]}>{userData?.nomeEmpresa || 'Empresa não informada'}</Text>
           </View>
         </View>
         <View style={styles.tabRowCentered}>
           <Pressable
-            style={[styles.tabButtonCentered, tab === 'posts' && { borderBottomColor: colors.titlePrimary, borderBottomWidth: 2 }]}
+            style={[styles.tabButtonCentered, tab === 'posts' && { borderBottomColor: colors.primary, borderBottomWidth: 3 }]}
             onPress={() => tab !== 'posts' && handleTabChange('posts')}
           >
-            <Text style={[styles.tabTextCentered, { color: tab === 'posts' ? colors.titlePrimary : colors.textSecondary }]}>Posts</Text>
+            <Ionicons name="document-text-outline" size={20} color={tab === 'posts' ? colors.primary : colors.textSecondary} />
+            <Text style={[styles.tabTextCentered, { color: tab === 'posts' ? colors.primary : colors.textSecondary }]}>Posts</Text>
           </Pressable>
           <Pressable
-            style={[styles.tabButtonCentered, tab === 'feedbacks' && { borderBottomColor: colors.titlePrimary, borderBottomWidth: 2 }]}
+            style={[styles.tabButtonCentered, tab === 'feedbacks' && { borderBottomColor: colors.primary, borderBottomWidth: 3 }]}
             onPress={() => tab !== 'feedbacks' && handleTabChange('feedbacks')}
           >
-            <Text style={[styles.tabTextCentered, { color: tab === 'feedbacks' ? colors.titlePrimary : colors.textSecondary }]}>Feedbacks</Text>
+            <Ionicons name="chatbubble-ellipses-outline" size={20} color={tab === 'feedbacks' ? colors.primary : colors.textSecondary} />
+            <Text style={[styles.tabTextCentered, { color: tab === 'feedbacks' ? colors.primary : colors.textSecondary }]}>Feedbacks</Text>
           </Pressable>
           {isEmpresa && (
             <Pressable
-              style={[styles.tabButtonCentered, tab === 'public' && { borderBottomColor: colors.titlePrimary, borderBottomWidth: 2 }]}
+              style={[styles.tabButtonCentered, tab === 'public' && { borderBottomColor: colors.primary, borderBottomWidth: 3 }]}
               onPress={() => tab !== 'public' && handleTabChange('public')}
             >
-              <Text style={[styles.tabTextCentered, { color: tab === 'public' ? colors.titlePrimary : colors.textSecondary }]}>Público</Text>
+              <Ionicons name="earth-outline" size={20} color={tab === 'public' ? colors.primary : colors.textSecondary} />
+              <Text style={[styles.tabTextCentered, { color: tab === 'public' ? colors.primary : colors.textSecondary }]}>Público</Text>
             </Pressable>
           )}
         </View>
@@ -633,40 +616,28 @@ export default function ProfileScreen() {
                     onPress={() => router.push(`/public-question?id=${question.id}`)}
                   >
                     <Text style={[styles.questionText, { color: colors.textPrimary }]}>{question.question}</Text>
-                    <Text style={[styles.responsesCount, { color: colors.textSecondary }]}>
-                      {question.responses?.length || 0} respostas
-                    </Text>
+                    <Text style={[styles.responsesCount, { color: colors.textSecondary }]}> {question.responses?.length || 0} respostas</Text>
                     {question.responses?.length > 0 && (
-                      <View style={[styles.lastResponse, { backgroundColor: colors.background }]}>
-                        <Text style={[styles.lastResponseText, { color: colors.textSecondary }]}>
-                          Última resposta: {question.responses[question.responses.length - 1].isAnonimo ? 'Anônimo' : question.responses[question.responses.length - 1].userName || 'Usuário'}
-                        </Text>
-                      </View>
+                      <View style={[styles.lastResponse, { backgroundColor: colors.background }]}> <Text style={[styles.lastResponseText, { color: colors.textSecondary }]}> Última resposta: {question.responses[question.responses.length - 1].isAnonimo ? 'Anônimo' : question.responses[question.responses.length - 1].userName || 'Usuário'} </Text> </View>
                     )}
-                    <Text style={[styles.questionDate, { color: colors.textSecondary }]}>
-                      {new Date(question.createdAt).toLocaleDateString()}
-                    </Text>
+                    <Text style={[styles.questionDate, { color: colors.textSecondary }]}> {new Date(question.createdAt).toLocaleDateString()} </Text>
                   </TouchableOpacity>
                 ))
               ) : (
-                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                  Você ainda não tem perguntas públicas
-                </Text>
+                <Text style={[styles.emptyText, { color: colors.textSecondary }]}> Você ainda não tem perguntas públicas </Text>
               )}
             </>
           )}
         </Animated.View>
       </ScrollView>
-
       {isEmpresa && (
         <TouchableOpacity
           style={[styles.floatingButton, { backgroundColor: colors.primary }]}
           onPress={() => setIsPublicQuestionModalVisible(true)}
         >
-          <Ionicons name="add" size={24} color={colors.background} />
+          <Ionicons name="add" size={28} color={colors.background} />
         </TouchableOpacity>
       )}
-
       {/* Modal de Admin */}
       <Modal
         animationType="slide"
@@ -838,7 +809,7 @@ export default function ProfileScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -847,10 +818,50 @@ const styles = StyleSheet.create({
     flex: 1,
     position: 'relative',
   },
-  profileHeaderCentered: {
+  profileTopSection: {
     alignItems: 'center',
-    marginTop: 32,
+    marginTop: 24,
     marginBottom: 16,
+  },
+  avatarWrapper: {
+    position: 'relative',
+    marginBottom: 8,
+  },
+  editAvatarButton: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 4,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  userInfoWrapper: {
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  userNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  pointsCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 16,
+    marginTop: 8,
+    marginBottom: 8,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
   },
   avatarLarge: {
     width: 90,
@@ -871,11 +882,6 @@ const styles = StyleSheet.create({
   },
   editTextButton: {
     marginBottom: 12,
-  },
-  editText: {
-    fontSize: 16,
-    textAlign: 'center',
-    textDecorationLine: 'underline',
   },
   tabRowCentered: {
     flexDirection: 'row',

@@ -15,7 +15,6 @@ import {
   ActivityIndicator
 } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { db, auth } from '@/services/firebase/firebase.config';
 import { 
   collection, 
@@ -31,6 +30,8 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { calcularMaximoPontosPorDia, observarPontosUsuario } from '@/services/firebase/fetchMaxPoints';
+import Header from '../components/Header';
+import { FontAwesome } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
@@ -688,63 +689,7 @@ const LojaScreen = () => {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Barra de pontos do usuário */}
-      <View style={[styles.pontosContainer, { backgroundColor: colors.background50 }]}>
-        <View style={styles.pontosInfo}>
-          <FontAwesome name="trophy" size={24} color={colors.warning} />
-          <View>
-            <Text style={[styles.pontosTexto, { color: colors.textPrimary }]}>
-              Seus pontos: <Text style={{ color: colors.primary, fontWeight: 'bold' }}>{pontos.toLocaleString()}</Text>
-            </Text>
-            <Text style={[styles.maximoDiarioTexto, { color: colors.textSecondary }]}>
-              Máximo diário: <Text style={{ color: colors.success, fontWeight: 'bold' }}>{maximoPontosPorDia.toLocaleString()} pts</Text>
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Cabeçalho da listagem */}
-      <View style={styles.cabecalho}>
-        <View>
-          <Text style={[styles.titulo, { color: colors.textPrimary }]}>
-            Listagem de produtos
-          </Text>
-          <Text style={[styles.subtitulo, { color: colors.textSecondary }]}>
-            {produtosEncontrados} produtos encontrados
-          </Text>
-        </View>
-        
-        {/* Botões de visualização */}
-        <View style={styles.viewOptions}>
-          <TouchableOpacity
-            style={[
-              styles.viewButton,
-              visualizacao === 'grade' && { backgroundColor: colors.background50 }
-            ]}
-            onPress={() => setVisualizacao('grade')}
-          >
-            <FontAwesome
-              name="th-large"
-              size={22}
-              color={visualizacao === 'grade' ? colors.primary : colors.textSecondary}
-            />
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[
-              styles.viewButton,
-              visualizacao === 'lista' && { backgroundColor: colors.background50 }
-            ]}
-            onPress={() => setVisualizacao('lista')}
-          >
-            <FontAwesome
-              name="list"
-              size={22}
-              color={visualizacao === 'lista' ? colors.primary : colors.textSecondary}
-            />
-          </TouchableOpacity>
-        </View>
-      </View>
+      <Header pontos={pontos} maximoPontosPorDia={maximoPontosPorDia} />
 
       {/* Opções de ordenação */}
       <View style={styles.ordenacaoContainer}>
@@ -1310,6 +1255,7 @@ const styles = StyleSheet.create({
   ordenacaoContainer: {
     marginBottom: 16,
     paddingHorizontal: 6,
+    paddingTop: 16,
   },
   ordenacaoWrapper: {
     flexDirection: 'row',
