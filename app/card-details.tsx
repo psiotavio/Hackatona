@@ -525,11 +525,9 @@ export default function CardDetailsScreen() {
                     numberOfLines={1}
                     ellipsizeMode="tail"
                   >
-                    {feedback.author && feedback.author.name 
-                      ? feedback.author.name 
-                      : feedback.userName || feedback.isAnonimo 
-                        ? 'Anônimo' 
-                        : 'Usuário'}
+                    {feedback.isAnonimo
+                      ? 'Anônimo'
+                      : (feedback.author?.name || feedback.userName || 'Usuário')}
                   </Text>
                 </View>
                 <TouchableOpacity 

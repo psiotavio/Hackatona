@@ -38,6 +38,7 @@ interface Feedback {
   likes: number;
   createdAt: Date;
   isLiked?: boolean;
+  nome?: string;
 }
 
 interface Post {
@@ -77,6 +78,7 @@ export default function HomeScreen() {
   const scrollY = useRef(new Animated.Value(0)).current;
   const router = useRouter();
   const { colors } = useTheme();
+  const [selectedFeedback, setSelectedFeedback] = useState<Feedback | null>(null);
 
   useEffect(() => {
     const user = auth.currentUser;
@@ -197,7 +199,8 @@ export default function HomeScreen() {
 
           const allFeedbacks = data.allFeedbacks?.map((feedback: any) => ({
             ...feedback,
-            isLiked: false
+            isLiked: false,
+            nome: feedback.nome || feedback.author?.name || data.nome || 'Usuário',
           })) || [];
 
           // Determinar o topFeedback
@@ -211,11 +214,19 @@ export default function HomeScreen() {
             )[0];
           }
 
+          // Corrigir nome do autor conforme anonimato
+          let authorName = 'Anônimo';
+          if (data.anonimo === true || data.isAnonimo === true) {
+            authorName = 'Anônimo';
+          } else if (data.nome) {
+            authorName = data.nome;
+          }
+
           return {
             id: doc.id,
             author: {
-              name: data.userName || 'Anônimo',
-              avatar: getAvatarUri(data.userName || 'Anônimo'),
+              name: authorName,
+              avatar: getAvatarUri(authorName),
             },
             title: data.titulo,
             description: data.descricao,
@@ -400,14 +411,13 @@ export default function HomeScreen() {
   };
 
   // Função para exibir comentários
-  const handleComments = (cardId: string) => {
-    const currentData = activeTab === 'time' ? timeData : empresaData;
-    const selectedPost = currentData.find(card => card.id === cardId);
-    
-    if (selectedPost) {
-      setSelectedPostContent(selectedPost.description);
-      setIsChatModalVisible(true);
+  const handleComments = (feedback: Feedback, post?: Post) => {
+    console.log('Feedback selecionado para detalhes:', feedback);
+    if (post) {
+      console.log('Post/Card relacionado ao feedback:', post);
     }
+    setSelectedFeedback(feedback);
+    setIsChatModalVisible(true);
   };
 
   // Seleciona o conjunto de dados correto com base na aba ativa
@@ -574,8 +584,9 @@ export default function HomeScreen() {
                 style={styles.actionButton}
                 onPress={(e) => {
                   e.stopPropagation();
-                  setSelectedPostContent(item.description);
-                  setIsChatModalVisible(true);
+                  if (item.topFeedback) {
+                    handleComments(item.topFeedback, item);
+                  }
                 }}
               >
                 <Ionicons name="chatbubble-outline" size={22} color={colors.primary} />
@@ -616,6 +627,7 @@ export default function HomeScreen() {
               <TouchableOpacity 
                 style={styles.feedbackLikeButton}
                 onPress={() => handleLike(item.topFeedback!.id, true)}
+                onLongPress={() => handleComments(item.topFeedback!, item)}
               >
                 <Ionicons 
                   name={item.topFeedback.isLiked ? "heart" : "heart-outline"} 
@@ -713,10 +725,10 @@ export default function HomeScreen() {
         visible={isChatModalVisible}
         onClose={() => {
           setIsChatModalVisible(false);
-          setSelectedPostContent('');
+          setSelectedFeedback(null);
         }}
-        postContent={selectedPostContent}
-        postId={selectedPostContent ? timeData.find(post => post.description === selectedPostContent)?.id : undefined}
+        postContent={selectedFeedback?.content}
+        postId={selectedFeedback?.id}
       />
     </SafeAreaView>
   );

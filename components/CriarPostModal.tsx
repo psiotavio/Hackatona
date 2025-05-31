@@ -27,7 +27,7 @@ import { User } from "firebase/auth";
 const { width } = Dimensions.get("window");
 
 interface CustomUser extends User {
-  empresaId?: string;
+  empresaId?: string
   nomeEmpresa?: string;
 }
 
@@ -163,6 +163,7 @@ export default function CriarPost({
       const user = auth.currentUser;
       let empresaId = null;
       let nomeEmpresa = null;
+      let nomeUsuario = null;
 
       if (user && !anonimo) {
         const userDoc = await getDoc(doc(db, "users", user.uid));
@@ -170,6 +171,7 @@ export default function CriarPost({
           const userData = userDoc.data();
           empresaId = userData.empresaId || null;
           nomeEmpresa = userData.nomeEmpresa || null;
+          nomeUsuario = userData.nome || null;
         }
       }
 
@@ -179,7 +181,7 @@ export default function CriarPost({
         link: link || null,
         createdAt: new Date(),
         userId: anonimo ? null : user?.uid || null,
-        userName: anonimo ? null : user?.displayName || user?.email,
+        userName: anonimo ? null : nomeUsuario,
         anonimo,
         empresaId,
         nomeEmpresa,

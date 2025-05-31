@@ -1177,6 +1177,7 @@ const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
     justifyContent: 'flex-start',
+    width: '100%',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
@@ -1471,7 +1472,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   modalDetalhe: {
-    width: '92%',
+    width: '100%',
     maxHeight: '90%',
     borderRadius: 12,
     padding: 20,
@@ -1485,6 +1486,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginTop: 40,
     marginBottom: 16,
   },
   detalheCategoria: {
