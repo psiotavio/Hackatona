@@ -1270,6 +1270,7 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
 	container: {
+		paddingTop: 70,
 		flex: 1,
 	},
 	profileHeaderCentered: {
