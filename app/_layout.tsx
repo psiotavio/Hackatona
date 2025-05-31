@@ -44,6 +44,7 @@ function RootLayoutNav() {
       >
         <Stack.Screen name="welcome" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="pendente" options={{ headerShown: false }} />
         <Stack.Screen 
           name="modal" 
           options={{ 
