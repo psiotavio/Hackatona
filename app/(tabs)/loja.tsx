@@ -694,16 +694,30 @@ const LojaScreen = () => {
       {/* Opções de ordenação */}
       <View style={styles.ordenacaoContainer}>
         <TouchableOpacity 
-          style={[styles.ordenacaoWrapper, { backgroundColor: colors.background50, borderColor: colors.border }]}
+          style={[
+            styles.ordenacaoWrapper, 
+            { 
+              backgroundColor: colors.background50, 
+              borderColor: colors.border,
+              borderWidth: 1,
+              borderRadius: 8,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.1,
+              shadowRadius: 2,
+              elevation: 2
+            }
+          ]}
           onPress={() => setModalOrdenacaoVisible(true)}
+          activeOpacity={0.7}
         >
           <Text style={[styles.ordenacaoLabel, { color: colors.textSecondary }]}>
             ordenar por:
           </Text>
-          <Text style={[styles.ordenacaoValor, { color: colors.textPrimary }]}>
+          <Text style={[styles.ordenacaoValor, { color: colors.textPrimary, fontWeight: '500' }]}>
             {ordenacaoSelecionada.nome}
           </Text>
-          <FontAwesome name="angle-down" size={16} color={colors.textSecondary} />
+          <FontAwesome name="angle-down" size={18} color={colors.primary} />
         </TouchableOpacity>
       </View>
       
@@ -735,12 +749,21 @@ const LojaScreen = () => {
               { 
                 backgroundColor: colors.background,
                 borderColor: colors.border,
-                top: 220, // Posicionado abaixo do botão de ordenação
                 width: '92%',
                 alignSelf: 'center'
               }
             ]}
           >
+            <Text style={{
+              fontSize: 16, 
+              fontWeight: 'bold', 
+              color: colors.textPrimary, 
+              marginBottom: 12,
+              textAlign: 'center'
+            }}>
+              Ordenar por
+            </Text>
+            
             {OPCOES_ORDENACAO.map((opcao) => (
               <TouchableOpacity
                 key={opcao.id}
@@ -1153,7 +1176,8 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     flex: 1,
-    justifyContent: 'flex-end',
+    justifyContent: 'flex-start',
+    width: '100%',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
@@ -1254,7 +1278,7 @@ const styles = StyleSheet.create({
   },
   ordenacaoContainer: {
     marginBottom: 16,
-    paddingHorizontal: 6,
+    paddingHorizontal: 12,
     paddingTop: 16,
   },
   ordenacaoWrapper: {
@@ -1263,7 +1287,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 8,
-    borderWidth: 1,
     width: '100%',
   },
   ordenacaoLabel: {
@@ -1272,7 +1295,6 @@ const styles = StyleSheet.create({
   },
   ordenacaoValor: {
     fontSize: 14,
-    fontWeight: '500',
     flex: 1,
   },
   produtosContainer: {
@@ -1450,7 +1472,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   modalDetalhe: {
-    width: '92%',
+    width: '100%',
     maxHeight: '90%',
     borderRadius: 12,
     padding: 20,
@@ -1464,6 +1486,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginTop: 40,
     marginBottom: 16,
   },
   detalheCategoria: {
@@ -1561,6 +1584,13 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
+    marginTop: 80,
+    maxHeight: '80%',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
   ordenacaoOption: {
     flexDirection: 'row',
@@ -1569,6 +1599,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 8,
+    marginBottom: 4,
   },
   ordenacaoOptionText: {
     fontSize: 16,

@@ -1,12 +1,15 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { DarkTheme, DefaultTheme, ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { StatusBar } from 'react-native';
 import 'react-native-reanimated';
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
+import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import React from 'react';
 
 export { 
   // Catch any errors thrown by the Layout component.
@@ -20,6 +23,56 @@ export const unstable_settings = {
  
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
+
+// Componente para gerenciar o redirecionamento baseado em autenticação
+function AuthenticationGuard({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+  const segments = useSegments();
+  const [initialized, setInitialized] = useState(false);
+  
+  useEffect(() => {
+    if (loading) return;
+
+    // Verificar se já mostrou a tela de boas-vindas ao usuário
+    const checkWelcomeScreen = async () => {
+      try {
+        if (!initialized) {
+          const hasSeenWelcome = await AsyncStorage.getItem('hasSeenWelcome');
+          
+          // Se é a primeira inicialização ou o usuário não está autenticado,
+          // redirecionar para a tela de boas-vindas
+          if (!hasSeenWelcome || !user) {
+            if (!hasSeenWelcome) {
+              await AsyncStorage.setItem('hasSeenWelcome', 'true');
+            }
+            
+            // Verificar se não está já nas telas permitidas sem autenticação
+            const inAuthGroup = 
+              segments[0] === 'welcome' || 
+              segments[0] === 'login' || 
+              segments[0] === 'register';
+            
+            if (!inAuthGroup) {
+              router.replace('/welcome');
+            }
+          } else if (segments[0] !== '(tabs)' && !segments[0]?.includes('card-details')) {
+            // Se está autenticado e não está nas tabs, redirecionar para as tabs
+            router.replace('/(tabs)');
+          }
+          
+          setInitialized(true);
+        }
+      } catch (error) {
+        console.error("Erro ao verificar status de autenticação:", error);
+      }
+    };
+    
+    checkWelcomeScreen();
+  }, [user, loading, segments, initialized]);
+  
+  return <>{children}</>;
+}
 
 function RootLayoutNav() {
   const { currentTheme } = useTheme();
@@ -98,7 +151,11 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider>
-      <RootLayoutNav />
+      <AuthProvider>
+        <AuthenticationGuard>
+          <RootLayoutNav />
+        </AuthenticationGuard>
+      </AuthProvider>
     </ThemeProvider>
   );
 }

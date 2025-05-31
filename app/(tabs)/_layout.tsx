@@ -4,6 +4,7 @@ import { Link, Tabs, useNavigation, router, usePathname } from 'expo-router';
 import { Pressable, AppState, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 // You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
 function TabBarIcon(props: {
@@ -15,9 +16,17 @@ function TabBarIcon(props: {
 
 export default function TabLayout() {
   const { colors } = useTheme();
+  const { user, loading } = useAuth();
   const [isEmpresa, setIsEmpresa] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const pathname = usePathname();
+
+  // Verifica se o usuário está autenticado e redireciona para login se necessário
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace('/welcome');
+    }
+  }, [user, loading]);
 
   // Função para verificar o tipo de usuário
   const checkUserType = async () => {
@@ -38,7 +47,9 @@ export default function TabLayout() {
   };
 
   useEffect(() => {
-    checkUserType();
+    if (user) {
+      checkUserType();
+    }
     
     // Verificar o tipo de usuário quando o aplicativo voltar para o primeiro plano
     const subscription = AppState.addEventListener('change', nextAppState => {
@@ -50,7 +61,7 @@ export default function TabLayout() {
     return () => {
       subscription.remove();
     };
-  }, [pathname]);
+  }, [pathname, user]);
 
   // Configuração comum para todas as abas
   const commonScreenOptions = {
@@ -75,12 +86,17 @@ export default function TabLayout() {
   };
 
   // Tela de carregamento
-  if (isLoading) {
+  if (isLoading || loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <Text>Carregando...</Text>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+        <Text style={{ color: colors.textPrimary }}>Carregando...</Text>
       </View>
     );
+  }
+
+  // Se o usuário não estiver autenticado, não renderiza nada - a verificação acima já redirecionou
+  if (!user) {
+    return null;
   }
 
   // Layout para empresa
