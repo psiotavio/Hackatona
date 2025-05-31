@@ -46,7 +46,25 @@ export default function AdminScreen() {
   const { colors } = useTheme();
 
   useEffect(() => {
-    carregarSolicitacoes();
+    // Verificar se o usuário é uma empresa
+    const verificarTipoUsuario = async () => {
+      try {
+        const userType = await AsyncStorage.getItem('userType');
+        if (userType !== 'empresa') {
+          // Redirecionar para a tela inicial se não for empresa
+          router.replace('/');
+          return;
+        }
+        
+        // Se for empresa, carrega as solicitações
+        carregarSolicitacoes();
+      } catch (error) {
+        console.error("Erro ao verificar tipo de usuário:", error);
+        router.replace('/');
+      }
+    };
+
+    verificarTipoUsuario();
   }, []);
 
   const carregarSolicitacoes = async () => {
