@@ -1,5 +1,5 @@
 import { StyleSheet, View, Text, TouchableOpacity, ScrollView } from 'react-native';
-import { useTheme } from '@/src/contexts/ThemeContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import React from 'react';
 import { useColorScheme } from 'react-native';
 

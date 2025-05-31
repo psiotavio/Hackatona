@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View, Text, ScrollView, TextInput } from 'react-native';
-import { useTheme } from '@/src/contexts/ThemeContext';
+import { useTheme } from '@/contexts/ThemeContext';
 
 export default function TabTwoScreen() {
   const { colors } = useTheme();
