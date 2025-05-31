@@ -18,6 +18,10 @@ import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
+import { auth, db } from '../services/firebase/firebase.config';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 
@@ -30,11 +34,46 @@ export default function LoginScreen() {
   const router = useRouter();
   const { colors, currentTheme } = useTheme();
 
-  const handleLogin = () => {
-    if (email && senha) {
-      router.replace('/(tabs)');
-    } else {
+  const handleLogin = async () => {
+    if (!email || !senha) {
       Alert.alert('Erro', 'Por favor, preencha todos os campos.');
+      return;
+    }
+
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, senha);
+      const user = userCredential.user;
+
+      // Buscar informações do usuário no Firestore
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        
+        // Salvar o tipo do usuário no AsyncStorage para uso posterior
+        await AsyncStorage.setItem('userType', userData.tipo);
+        
+        // Redirecionar baseado no tipo de usuário e status
+        if (userData.tipo === 'empresa') {
+          router.replace('/(tabs)/admin');
+        } else if (userData.tipo === 'cliente' && userData.status === 'pending') {
+          router.replace('/pendente');
+        } else {
+          router.replace('/(tabs)');
+        }
+      } else {
+        Alert.alert('Erro', 'Dados do usuário não encontrados.');
+      }
+    } catch (error: any) {
+      let message = 'Erro ao fazer login. Tente novamente.';
+      if (error.code === 'auth/invalid-email') {
+        message = 'E-mail inválido.';
+      } else if (error.code === 'auth/user-not-found') {
+        message = 'Usuário não encontrado.';
+      } else if (error.code === 'auth/wrong-password') {
+        message = 'Senha incorreta.';
+      }
+      Alert.alert('Erro', message);
     }
   };
 

@@ -8,14 +8,14 @@ import { StatusBar } from 'react-native';
 import 'react-native-reanimated';
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
 
-export {
+export { 
   // Catch any errors thrown by the Layout component.
   ErrorBoundary,
-} from 'expo-router';
-
+} from 'expo-router';    
+ 
 export const unstable_settings = {
   // Ensure that reloading on `/modal` keeps a back button present.
-  initialRouteName: 'welcome',
+  initialRouteName: 'welcome', 
 };
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
