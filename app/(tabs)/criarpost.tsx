@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, SafeAreaView } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import CriarPost from '@/components/criarpost';
+import CriarPost from '@/components/CriarPostModal';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function CriarPostScreen() {

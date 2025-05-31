@@ -73,12 +73,14 @@ export async function generateFeedbackAnalysis(responses: FeedbackResponse[], ma
       messages: [
         {
           role: "system",
-          content: `Você é um analista profissional que gera feedback construtivo.
+          content: `Você é um analista profissional que gera feedback construtivo em primeira pessoa.
           Analise as seguintes respostas e gere um feedback personalizado:
           ${JSON.stringify(responses, null, 2)}
           
           Regras:
           - O feedback DEVE ter EXATAMENTE ${maxLength} caracteres
+          - Use SEMPRE primeira pessoa (eu, meu, minha)
+          - Comece com "Eu" ou "Gostei" ou "Adorei" ou similar
           - Seja direto e objetivo
           - Use linguagem profissional mas amigável
           - Foque nos pontos principais das respostas
@@ -86,7 +88,14 @@ export async function generateFeedbackAnalysis(responses: FeedbackResponse[], ma
           - Mantenha um tom construtivo e motivador
           - Personalize o feedback baseado nas respostas específicas
           - Inclua sugestões de melhoria quando relevante
-          - IMPORTANTE: Ajuste o texto para ter exatamente ${maxLength} caracteres, sem cortar palavras no meio`
+          - IMPORTANTE: Ajuste o texto para ter exatamente ${maxLength} caracteres, sem cortar palavras no meio
+          
+          Exemplos de início:
+          - "Eu adorei a forma como você..."
+          - "Gostei muito da sua abordagem..."
+          - "Adorei ver como você..."
+          - "Eu fiquei impressionado com..."
+          - "Me surpreendeu positivamente..."`
         }
       ],
     });

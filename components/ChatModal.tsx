@@ -10,9 +10,13 @@ import {
   Platform,
   Modal,
   ActivityIndicator,
+  Switch,
+  Alert,
 } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { generateFeedbackQuestions, generateFeedbackAnalysis } from '@/services/openai';
+import { db, auth } from '@/services/firebase/firebase.config';
+import { addDoc, collection, updateDoc, doc, arrayUnion } from 'firebase/firestore';
 
 interface Message {
   id: string;
@@ -30,13 +34,24 @@ interface FeedbackResponse {
   answer: string;
 }
 
+interface Feedback {
+  id: string;
+  userId: string | null;
+  userName: string | null;
+  isAnonimo: boolean;
+  content: string;
+  likes: number;
+  createdAt: Date;
+}
+
 interface ChatModalProps {
   visible: boolean;
   onClose: () => void;
   postContent?: string;
+  postId?: string;
 }
 
-export function ChatModal({ visible, onClose, postContent }: ChatModalProps) {
+export function ChatModal({ visible, onClose, postContent, postId }: ChatModalProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -44,6 +59,8 @@ export function ChatModal({ visible, onClose, postContent }: ChatModalProps) {
   const [questions, setQuestions] = useState<FeedbackQuestion[]>([]);
   const [responses, setResponses] = useState<FeedbackResponse[]>([]);
   const [showLengthOptions, setShowLengthOptions] = useState(false);
+  const [isAnonimo, setIsAnonimo] = useState(false);
+  const [generatedFeedback, setGeneratedFeedback] = useState('');
   const { colors } = useTheme();
 
   useEffect(() => {
@@ -110,6 +127,7 @@ export function ChatModal({ visible, onClose, postContent }: ChatModalProps) {
     setIsLoading(true);
     try {
       const feedback = await generateFeedbackAnalysis(responses, length);
+      setGeneratedFeedback(feedback);
       addMessage(feedback, false);
       setShowLengthOptions(false);
       // Adiciona o botão de publicar após o feedback
@@ -121,6 +139,33 @@ export function ChatModal({ visible, onClose, postContent }: ChatModalProps) {
       addMessage('Desculpe, ocorreu um erro ao gerar o feedback.', false);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handlePublishFeedback = async () => {
+    if (!postId || !generatedFeedback) return;
+
+    try {
+      const user = auth.currentUser;
+      const feedbackData: Feedback = {
+        id: Date.now().toString(),
+        userId: isAnonimo ? null : user?.uid || null,
+        userName: isAnonimo ? null : user?.displayName || user?.email || null,
+        isAnonimo,
+        content: generatedFeedback,
+        likes: 0,
+        createdAt: new Date(),
+      };
+
+      // Adicionar o feedback ao array de feedbacks do post
+      await updateDoc(doc(db, "feedback", postId), {
+        allFeedbacks: arrayUnion(feedbackData)
+      });
+
+      onClose();
+    } catch (error) {
+      console.error('Erro ao publicar feedback:', error);
+      Alert.alert('Erro', 'Não foi possível publicar o feedback');
     }
   };
 
@@ -159,12 +204,24 @@ export function ChatModal({ visible, onClose, postContent }: ChatModalProps) {
               ]}
             >
               {message.text === 'publicar_button' ? (
-                <TouchableOpacity
-                  style={[styles.publishButton, { backgroundColor: colors.primary }]}
-                  onPress={onClose}
-                >
-                  <Text style={styles.publishButtonText}>Publicar Feedback</Text>
-                </TouchableOpacity>
+                <View style={styles.publishContainer}>
+                  <View style={styles.anonimoContainer}>
+                    <Text style={[styles.anonimoText, { color: colors.textPrimary }]}>
+                      Publicar meu feedback como anônimo
+                    </Text>
+                    <Switch
+                      value={isAnonimo}
+                      onValueChange={setIsAnonimo}
+                      trackColor={{ false: colors.border, true: colors.primary }}
+                    />
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.publishButton, { backgroundColor: colors.primary }]}
+                    onPress={handlePublishFeedback}
+                  >
+                    <Text style={styles.publishButtonText}>Publicar Meu Feedback</Text>
+                  </TouchableOpacity>
+                </View>
               ) : (
                 <Text
                   style={[
@@ -334,6 +391,19 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     opacity: 0.5,
+  },
+  publishContainer: {
+    width: '100%',
+  },
+  anonimoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+    paddingHorizontal: 8,
+  },
+  anonimoText: {
+    fontSize: 14,
   },
   publishButton: {
     padding: 12,

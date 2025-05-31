@@ -180,7 +180,7 @@ export default function CardDetailsScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const params = useLocalSearchParams();
-  const { cardId, cardType } = params;
+  const { cardId, cardType, cardData } = params;
   
   const [card, setCard] = useState<Post | null>(null);
   const [newFeedback, setNewFeedback] = useState('');
@@ -189,18 +189,21 @@ export default function CardDetailsScreen() {
   const [selectedFeedback, setSelectedFeedback] = useState<Feedback | null>(null);
 
   useEffect(() => {
-    // Buscar o card com base no ID e tipo
-    const currentData = cardType === 'time' ? TIME_DATA : EMPRESA_DATA;
-    const foundCard = currentData.find(item => item.id === cardId);
-    
-    if (foundCard) {
-      setCard(foundCard);
+    if (cardData) {
+      try {
+        const parsedData = JSON.parse(cardData as string);
+        setCard(parsedData);
+      } catch (error) {
+        console.error('Erro ao parsear dados do card:', error);
+        Alert.alert('Erro', 'Não foi possível carregar os detalhes do post');
+        router.back();
+      }
     } else {
-      // Se não encontrar o card, voltar para a tela anterior
+      // Se não houver dados, voltar para a tela anterior
       Alert.alert('Erro', 'Post não encontrado');
       router.back();
     }
-  }, [cardId, cardType]);
+  }, [cardData]);
 
   const handleLike = (feedbackId: string) => {
     if (!card) return;

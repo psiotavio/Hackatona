@@ -19,7 +19,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth, db } from '@/services/firebase/firebase.config';
 import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { useTheme } from '@/contexts/ThemeContext';
-import BottomBar from './components/BottomBar';
 
 // Função para gerar avatar com as iniciais do nome
 const getAvatarUri = (name: string) => {
@@ -198,7 +197,6 @@ export default function AdminScreen() {
         </View>
       </ScrollView>
 
-      {isEmpresa && <BottomBar isEmpresa={isEmpresa} />}
     </SafeAreaView>
   );
 }

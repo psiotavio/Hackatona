@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -17,6 +17,8 @@ import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { ChatModal } from '@/components/ChatModal';
 import { useTheme } from '@/contexts/ThemeContext';
+import { db, auth } from '@/services/firebase/firebase.config';
+import { collection, query, where, orderBy, onSnapshot, doc, getDoc } from 'firebase/firestore';
 
 // Função para gerar avatar com as iniciais do nome
 const getAvatarUri = (name: string) => {
@@ -26,13 +28,13 @@ const getAvatarUri = (name: string) => {
 
 interface Feedback {
   id: string;
-  author: {
-    name: string;
-    avatar: any;
-  };
+  userId: string | null;
+  userName: string | null;
+  isAnonimo: boolean;
   content: string;
   likes: number;
-  isLiked: boolean;
+  createdAt: Date;
+  isLiked?: boolean;
 }
 
 interface Post {
@@ -49,561 +51,128 @@ interface Post {
   isLiked: boolean;
   isFavorite: boolean;
   comments: number;
-  topFeedback: Feedback;
   allFeedbacks: Feedback[];
+  topFeedback?: Feedback;
 }
 
-// Dados fictícios para os cards de time
-const TIME_DATA: Post[] = [
-  {
-    id: '1',
-    author: {
-      name: 'Teste Lorem Ipsum',
-      avatar: getAvatarUri('Teste Lorem'),
-    },
-    title: 'Teste Lorem Ipsum',
-    description: 'Fiz uma tela de dashboard',
-    image: 'https://picsum.photos/800/600?random=1',
-    link: 'https://exemplo.com/dashboard',
-    likes: 5,
-    isLiked: false,
-    isFavorite: false,
-    comments: 3,
-    topFeedback: {
-      id: '101',
-      author: {
-        name: 'Super Interessante!',
-        avatar: getAvatarUri('Super Interessante'),
-      },
-      content: 'Super Interessante!',
-      likes: 8,
-      isLiked: false,
-    },
-    allFeedbacks: [
-      {
-        id: '101',
-        author: {
-          name: 'Super Interessante!',
-          avatar: getAvatarUri('Super Interessante'),
-        },
-        content: 'Super Interessante!',
-        likes: 8,
-        isLiked: false,
-      },
-      {
-        id: '102',
-        author: {
-          name: 'João Silva',
-          avatar: getAvatarUri('João Silva'),
-        },
-        content: 'Ficou incrível! Adorei as cores e a disposição dos elementos.',
-        likes: 5,
-        isLiked: false,
-      }
-    ]
-  },
-  {
-    id: '2',
-    author: {
-      name: 'Teste Lorem Ipsum',
-      avatar: getAvatarUri('Teste Lorem'),
-    },
-    title: 'Teste Lorem Ipsum',
-    description: 'Fiz uma tela de dashboard',
-    image: 'https://picsum.photos/800/600?random=2',
-    link: 'https://exemplo.com/dashboard2',
-    likes: 7,
-    isLiked: false,
-    isFavorite: false,
-    comments: 4,
-    topFeedback: {
-      id: '102',
-      author: {
-        name: 'Super Interessante!',
-        avatar: getAvatarUri('Super Interessante'),
-      },
-      content: 'Super Interessante!',
-      likes: 12,
-      isLiked: false,
-    },
-    allFeedbacks: [
-      {
-        id: '102',
-        author: {
-          name: 'Super Interessante!',
-          avatar: getAvatarUri('Super Interessante'),
-        },
-        content: 'Super Interessante!',
-        likes: 12,
-        isLiked: false,
-      },
-      {
-        id: '103',
-        author: {
-          name: 'Maria Oliveira',
-          avatar: getAvatarUri('Maria Oliveira'),
-        },
-        content: 'Muito bem feito! Parabéns pelo trabalho.',
-        likes: 7,
-        isLiked: false,
-      }
-    ]
-  },
-  {
-    id: '3',
-    author: {
-      name: 'Teste Lorem Ipsum',
-      avatar: getAvatarUri('Teste Lorem'),
-    },
-    title: 'Teste Lorem Ipsum',
-    description: 'Fiz uma tela de dashboard',
-    image: 'https://picsum.photos/800/600?random=3',
-    link: 'https://exemplo.com/dashboard3',
-    likes: 9,
-    isLiked: false,
-    isFavorite: false,
-    comments: 2,
-    topFeedback: {
-      id: '103',
-      author: {
-        name: 'Super Interessante!',
-        avatar: getAvatarUri('Super Interessante'),
-      },
-      content: 'Super Interessante!',
-      likes: 15,
-      isLiked: false,
-    },
-    allFeedbacks: [
-      {
-        id: '103',
-        author: {
-          name: 'Super Interessante!',
-          avatar: getAvatarUri('Super Interessante'),
-        },
-        content: 'Super Interessante!',
-        likes: 15,
-        isLiked: false,
-      },
-      {
-        id: '104',
-        author: {
-          name: 'Pedro Santos',
-          avatar: getAvatarUri('Pedro Santos'),
-        },
-        content: 'Excelente trabalho! Ficou muito profissional.',
-        likes: 9,
-        isLiked: false,
-      }
-    ]
-  },
-  {
-    id: '4',
-    author: {
-      name: 'Maria Silva',
-      avatar: getAvatarUri('Maria Silva'),
-    },
-    title: 'Maria Silva',
-    description: 'Implementei uma nova funcionalidade no app',
-    image: 'https://picsum.photos/800/600?random=4',
-    link: 'https://exemplo.com/nova-funcionalidade',
-    likes: 12,
-    isLiked: false,
-    isFavorite: false,
-    comments: 5,
-    topFeedback: {
-      id: '104',
-      author: {
-        name: 'João Santos',
-        avatar: getAvatarUri('João Santos'),
-      },
-      content: 'Ficou incrível!',
-      likes: 10,
-      isLiked: false,
-    },
-    allFeedbacks: [
-      {
-        id: '104',
-        author: {
-          name: 'João Santos',
-          avatar: getAvatarUri('João Santos'),
-        },
-        content: 'Ficou incrível!',
-        likes: 10,
-        isLiked: false,
-      },
-      {
-        id: '105',
-        author: {
-          name: 'Ana Paula',
-          avatar: getAvatarUri('Ana Paula'),
-        },
-        content: 'Essa funcionalidade vai facilitar muito o trabalho!',
-        likes: 8,
-        isLiked: false,
-      }
-    ]
-  },
-  {
-    id: '5',
-    author: {
-      name: 'Carlos Oliveira',
-      avatar: getAvatarUri('Carlos Oliveira'),
-    },
-    title: 'Carlos Oliveira',
-    description: 'Criei uma animação para o app',
-    image: 'https://picsum.photos/800/600?random=5',
-    link: 'https://exemplo.com/animacao',
-    likes: 15,
-    isLiked: false,
-    isFavorite: false,
-    comments: 7,
-    topFeedback: {
-      id: '105',
-      author: {
-        name: 'Ana Paula',
-        avatar: getAvatarUri('Ana Paula'),
-      },
-      content: 'Muito fluído, parabéns!',
-      likes: 18,
-      isLiked: false,
-    },
-    allFeedbacks: [
-      {
-        id: '105',
-        author: {
-          name: 'Ana Paula',
-          avatar: getAvatarUri('Ana Paula'),
-        },
-        content: 'Muito fluído, parabéns!',
-        likes: 18,
-        isLiked: false,
-      },
-      {
-        id: '106',
-        author: {
-          name: 'Roberto Gomes',
-          avatar: getAvatarUri('Roberto Gomes'),
-        },
-        content: 'A animação ficou super suave! Como você fez isso?',
-        likes: 12,
-        isLiked: false,
-      }
-    ]
-  },
-  {
-    id: '6',
-    author: {
-      name: 'Roberto Gomes',
-      avatar: getAvatarUri('Roberto Gomes'),
-    },
-    title: 'Roberto Gomes',
-    description: 'Resolvi um bug crítico no sistema',
-    image: 'https://picsum.photos/800/600?random=6',
-    link: 'https://exemplo.com/bugfix',
-    likes: 20,
-    isLiked: false,
-    isFavorite: false,
-    comments: 8,
-    topFeedback: {
-      id: '106',
-      author: {
-        name: 'Patricia Mendes',
-        avatar: getAvatarUri('Patricia Mendes'),
-      },
-      content: 'Excelente trabalho!',
-      likes: 22,
-      isLiked: false,
-    },
-    allFeedbacks: [
-      {
-        id: '106',
-        author: {
-          name: 'Patricia Mendes',
-          avatar: getAvatarUri('Patricia Mendes'),
-        },
-        content: 'Excelente trabalho!',
-        likes: 22,
-        isLiked: false,
-      },
-      {
-        id: '107',
-        author: {
-          name: 'Lucas Ferreira',
-          avatar: getAvatarUri('Lucas Ferreira'),
-        },
-        content: 'Estava atrapalhando muito o nosso fluxo. Obrigado por resolver!',
-        likes: 15,
-        isLiked: false,
-      }
-    ]
-  },
-];
-
-// Dados fictícios para os cards de empresa
-const EMPRESA_DATA: Post[] = [
-  {
-    id: '101',
-    author: {
-      name: 'Tech Solutions',
-      avatar: getAvatarUri('Tech Solutions'),
-    },
-    title: 'Tech Solutions',
-    description: 'Lançamos a nova versão do nosso app empresarial',
-    image: 'https://picsum.photos/800/600?random=7',
-    link: 'https://techsolutions.com/nova-versao',
-    likes: 48,
-    isLiked: false,
-    isFavorite: false,
-    comments: 15,
-    topFeedback: {
-      id: '201',
-      author: {
-        name: 'Sandra Marketing',
-        avatar: getAvatarUri('Sandra Marketing'),
-      },
-      content: 'Essa atualização vai revolucionar o mercado!',
-      likes: 32,
-      isLiked: false,
-    },
-    allFeedbacks: [
-      {
-        id: '201',
-        author: {
-          name: 'Sandra Marketing',
-          avatar: getAvatarUri('Sandra Marketing'),
-        },
-        content: 'Essa atualização vai revolucionar o mercado!',
-        likes: 32,
-        isLiked: false,
-      },
-      {
-        id: '202',
-        author: {
-          name: 'Marcos Diretor',
-          avatar: getAvatarUri('Marcos Diretor'),
-        },
-        content: 'Estamos recebendo feedbacks muito positivos dos clientes!',
-        likes: 24,
-        isLiked: false,
-      }
-    ]
-  },
-  {
-    id: '102',
-    author: {
-      name: 'Cloud Systems',
-      avatar: getAvatarUri('Cloud Systems'),
-    },
-    title: 'Cloud Systems',
-    description: 'Nova estratégia de marketing digital implementada',
-    image: 'https://picsum.photos/800/600?random=8',
-    link: 'https://cloudsystems.com/marketing',
-    likes: 67,
-    isLiked: false,
-    isFavorite: false,
-    comments: 21,
-    topFeedback: {
-      id: '202',
-      author: {
-        name: 'Marcos Diretor',
-        avatar: getAvatarUri('Marcos Diretor'),
-      },
-      content: 'Estamos observando um aumento significativo nas conversões!',
-      likes: 45,
-      isLiked: false,
-    },
-    allFeedbacks: [
-      {
-        id: '202',
-        author: {
-          name: 'Marcos Diretor',
-          avatar: getAvatarUri('Marcos Diretor'),
-        },
-        content: 'Estamos observando um aumento significativo nas conversões!',
-        likes: 45,
-        isLiked: false,
-      },
-      {
-        id: '203',
-        author: {
-          name: 'Carla Finanças',
-          avatar: getAvatarUri('Carla Finanças'),
-        },
-        content: 'Os resultados financeiros já estão aparecendo. Excelente trabalho da equipe!',
-        likes: 38,
-        isLiked: false,
-      }
-    ]
-  },
-  {
-    id: '103',
-    author: {
-      name: 'Innovate Inc',
-      avatar: getAvatarUri('Innovate Inc'),
-    },
-    title: 'Innovate Inc',
-    description: 'Resultados do primeiro trimestre superaram expectativas',
-    image: 'https://picsum.photos/800/600?random=9',
-    link: 'https://innovateinc.com/resultados-q1',
-    likes: 89,
-    isLiked: false,
-    isFavorite: false,
-    comments: 34,
-    topFeedback: {
-      id: '203',
-      author: {
-        name: 'Carla Finanças',
-        avatar: getAvatarUri('Carla Finanças'),
-      },
-      content: 'Os investidores estão muito satisfeitos com esses números!',
-      likes: 56,
-      isLiked: false,
-    },
-    allFeedbacks: [
-      {
-        id: '203',
-        author: {
-          name: 'Carla Finanças',
-          avatar: getAvatarUri('Carla Finanças'),
-        },
-        content: 'Os investidores estão muito satisfeitos com esses números!',
-        likes: 56,
-        isLiked: false,
-      },
-      {
-        id: '204',
-        author: {
-          name: 'Ricardo Expansão',
-          avatar: getAvatarUri('Ricardo Expansão'),
-        },
-        content: 'Isso nos dá confiança para expandir para novos mercados!',
-        likes: 41,
-        isLiked: false,
-      }
-    ]
-  },
-  {
-    id: '104',
-    author: {
-      name: 'Global Tech',
-      avatar: getAvatarUri('Global Tech'),
-    },
-    title: 'Global Tech',
-    description: 'Expandimos operações para três novos países',
-    image: 'https://picsum.photos/800/600?random=10',
-    link: 'https://globaltech.com/expansao',
-    likes: 112,
-    isLiked: false,
-    isFavorite: false,
-    comments: 42,
-    topFeedback: {
-      id: '204',
-      author: {
-        name: 'Ricardo Expansão',
-        avatar: getAvatarUri('Ricardo Expansão'),
-      },
-      content: 'Uma jogada estratégica impressionante para o mercado internacional',
-      likes: 78,
-      isLiked: false,
-    },
-    allFeedbacks: [
-      {
-        id: '204',
-        author: {
-          name: 'Ricardo Expansão',
-          avatar: getAvatarUri('Ricardo Expansão'),
-        },
-        content: 'Uma jogada estratégica impressionante para o mercado internacional',
-        likes: 78,
-        isLiked: false,
-      },
-      {
-        id: '205',
-        author: {
-          name: 'Amanda Inovação',
-          avatar: getAvatarUri('Amanda Inovação'),
-        },
-        content: 'Estou ansiosa para ver como nossos produtos serão recebidos nesses novos mercados!',
-        likes: 65,
-        isLiked: false,
-      }
-    ]
-  },
-  {
-    id: '105',
-    author: {
-      name: 'Future Labs',
-      avatar: getAvatarUri('Future Labs'),
-    },
-    title: 'Future Labs',
-    description: 'Nova patente registrada para tecnologia de IA',
-    image: 'https://picsum.photos/800/600?random=11',
-    link: 'https://futurelabs.com/ia-patent',
-    likes: 135,
-    isLiked: false,
-    isFavorite: false,
-    comments: 53,
-    topFeedback: {
-      id: '205',
-      author: {
-        name: 'Amanda Inovação',
-        avatar: getAvatarUri('Amanda Inovação'),
-      },
-      content: 'Esta tecnologia vai mudar completamente o setor!',
-      likes: 91,
-      isLiked: false,
-    },
-    allFeedbacks: [
-      {
-        id: '205',
-        author: {
-          name: 'Amanda Inovação',
-          avatar: getAvatarUri('Amanda Inovação'),
-        },
-        content: 'Esta tecnologia vai mudar completamente o setor!',
-        likes: 91,
-        isLiked: false,
-      },
-      {
-        id: '206',
-        author: {
-          name: 'Gustavo Tecnologia',
-          avatar: getAvatarUri('Gustavo Tecnologia'),
-        },
-        content: 'Anos de pesquisa finalmente dando frutos. Parabéns a toda equipe!',
-        likes: 82,
-        isLiked: false,
-      }
-    ]
-  },
-];
-
 export default function HomeScreen() {
-  const [activeTab, setActiveTab] = useState('time'); // 'time' ou 'empresa'
-  const [timeData, setTimeData] = useState<Post[]>([...TIME_DATA]);
-  const [empresaData, setEmpresaData] = useState<Post[]>([...EMPRESA_DATA]);
+  const [activeTab, setActiveTab] = useState('time');
+  const [timeData, setTimeData] = useState<Post[]>([]);
+  const [empresaData, setEmpresaData] = useState<Post[]>([]);
   const [isChatModalVisible, setIsChatModalVisible] = useState(false);
   const [selectedPostContent, setSelectedPostContent] = useState('');
   const scrollY = useRef(new Animated.Value(0)).current;
   const router = useRouter();
   const { colors } = useTheme();
 
+  // Função para buscar os posts do feed
+  const fetchFeedPosts = async () => {
+    try {
+      const user = auth.currentUser;
+      if (!user) return;
+
+      // Buscar dados do usuário para obter o empresaId
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      if (!userDoc.exists()) return;
+
+      const userData = userDoc.data();
+      const empresaId = userData.empresaId;
+
+      // Buscar posts relacionados à empresa
+      const postsQuery = query(
+        collection(db, "feedback"),
+        where("empresaId", "==", empresaId),
+        orderBy("createdAt", "desc")
+      );
+
+      // Usar onSnapshot para atualizações em tempo real
+      const unsubscribe = onSnapshot(postsQuery, (snapshot) => {
+        const posts = snapshot.docs.map(doc => {
+          const data = doc.data();
+          const allFeedbacks = data.allFeedbacks?.map((feedback: any) => ({
+            ...feedback,
+            isLiked: false
+          })) || [];
+
+          // Determinar o topFeedback
+          let topFeedback: Feedback | undefined;
+          if (allFeedbacks.length > 0) {
+            // Primeiro ordena por número de curtidas (decrescente)
+            const sortedByLikes = [...allFeedbacks].sort((a, b) => b.likes - a.likes);
+            // Se houver empate no número de curtidas, pega o mais recente
+            const maxLikes = sortedByLikes[0].likes;
+            const topLikedFeedbacks = sortedByLikes.filter(f => f.likes === maxLikes);
+            topFeedback = topLikedFeedbacks.sort((a, b) => 
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            )[0];
+          }
+
+          return {
+            id: doc.id,
+            author: {
+              name: data.userName || 'Anônimo',
+              avatar: getAvatarUri(data.userName || 'Anônimo'),
+            },
+            title: data.titulo,
+            description: data.descricao,
+            image: data.imagem,
+            link: data.link,
+            likes: 0,
+            isLiked: false,
+            isFavorite: false,
+            comments: allFeedbacks.length,
+            allFeedbacks,
+            topFeedback
+          };
+        });
+
+        setTimeData(posts);
+        setEmpresaData(posts);
+      }, (error) => {
+        console.error("Erro ao observar posts:", error);
+        Alert.alert("Erro", "Não foi possível carregar os posts em tempo real");
+      });
+
+      return unsubscribe;
+    } catch (error) {
+      console.error("Erro ao buscar posts:", error);
+      Alert.alert("Erro", "Não foi possível carregar os posts");
+    }
+  };
+
+  useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
+
+    const setupFeed = async () => {
+      unsubscribe = await fetchFeedPosts();
+    };
+
+    setupFeed();
+
+    // Limpar o listener quando o componente for desmontado
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  }, []);
+
   // Função para lidar com curtidas
   const handleLike = (cardId: string, isFromFeedback = false) => {
     if (activeTab === 'time') {
       setTimeData(prev => prev.map(card => {
         if (isFromFeedback) {
-          if (card.topFeedback.id === cardId) {
-            const newLikes = card.topFeedback.isLiked ? card.topFeedback.likes - 1 : card.topFeedback.likes + 1;
-            return {
-              ...card,
-              topFeedback: {
-                ...card.topFeedback,
-                likes: newLikes,
-                isLiked: !card.topFeedback.isLiked
-              }
-            };
-          }
+          const updatedFeedbacks = card.allFeedbacks.map(feedback => {
+            if (feedback.id === cardId) {
+              return {
+                ...feedback,
+                likes: feedback.isLiked ? feedback.likes - 1 : feedback.likes + 1,
+                isLiked: !feedback.isLiked
+              };
+            }
+            return feedback;
+          });
+          return { ...card, allFeedbacks: updatedFeedbacks };
         } else {
           if (card.id === cardId) {
             const newLikes = card.isLiked ? card.likes - 1 : card.likes + 1;
@@ -615,17 +184,17 @@ export default function HomeScreen() {
     } else {
       setEmpresaData(prev => prev.map(card => {
         if (isFromFeedback) {
-          if (card.topFeedback.id === cardId) {
-            const newLikes = card.topFeedback.isLiked ? card.topFeedback.likes - 1 : card.topFeedback.likes + 1;
-            return {
-              ...card,
-              topFeedback: {
-                ...card.topFeedback,
-                likes: newLikes,
-                isLiked: !card.topFeedback.isLiked
-              }
-            };
-          }
+          const updatedFeedbacks = card.allFeedbacks.map(feedback => {
+            if (feedback.id === cardId) {
+              return {
+                ...feedback,
+                likes: feedback.isLiked ? feedback.likes - 1 : feedback.likes + 1,
+                isLiked: !feedback.isLiked
+              };
+            }
+            return feedback;
+          });
+          return { ...card, allFeedbacks: updatedFeedbacks };
         } else {
           if (card.id === cardId) {
             const newLikes = card.isLiked ? card.likes - 1 : card.likes + 1;
@@ -763,7 +332,23 @@ export default function HomeScreen() {
           activeOpacity={0.9} 
           onPress={() => router.push({
             pathname: '/card-details',
-            params: { cardId: tarefa.id, cardType: activeTab }
+            params: { 
+              cardId: tarefa.id,
+              cardType: activeTab,
+              cardData: JSON.stringify({
+                id: tarefa.id,
+                author: tarefa.author,
+                title: tarefa.title,
+                description: tarefa.description,
+                image: tarefa.image,
+                link: tarefa.link,
+                likes: tarefa.likes,
+                isLiked: tarefa.isLiked,
+                isFavorite: tarefa.isFavorite,
+                comments: tarefa.comments,
+                allFeedbacks: tarefa.allFeedbacks
+              })
+            }
           })}
         >
           <View style={[styles.card, { backgroundColor: colors.background50 }]}>
@@ -832,21 +417,43 @@ export default function HomeScreen() {
         </TouchableOpacity>
         
         <View style={[styles.feedbackContainer, { backgroundColor: colors.background50 }]}>
-          <View style={styles.feedbackContent}>
-            <Image source={tarefa.topFeedback.author.avatar} style={styles.feedbackAvatar} />
-            <Text style={[styles.feedbackText, { color: colors.textSecondary }]}>{tarefa.topFeedback.content}</Text>
-            <TouchableOpacity 
-              style={styles.feedbackLikeButton}
-              onPress={() => handleLike(tarefa.topFeedback.id, true)}
-            >
-              <Ionicons 
-                name={tarefa.topFeedback.isLiked ? "heart" : "heart-outline"} 
-                size={18} 
-                color={colors.primary} 
+          {tarefa.topFeedback ? (
+            <View style={styles.feedbackContent}>
+              <Image 
+                source={tarefa.topFeedback.isAnonimo ? 
+                  getAvatarUri('Anônimo') : 
+                  getAvatarUri(tarefa.topFeedback.userName || 'Usuário')} 
+                style={styles.feedbackAvatar} 
               />
-              <Text style={[styles.feedbackLikeCount, { color: colors.primary }]}>{tarefa.topFeedback.likes}</Text>
-            </TouchableOpacity>
-          </View>
+              <View style={styles.feedbackTextContainer}>
+                <Text style={[styles.feedbackAuthor, { color: colors.textPrimary }]}>
+                  {tarefa.topFeedback.isAnonimo ? 'Anônimo' : tarefa.topFeedback.userName}
+                </Text>
+                <Text style={[styles.feedbackText, { color: colors.textSecondary }]}>
+                  {tarefa.topFeedback.content}
+                </Text>
+              </View>
+              <TouchableOpacity 
+                style={styles.feedbackLikeButton}
+                onPress={() => handleLike(tarefa.topFeedback!.id, true)}
+              >
+                <Ionicons 
+                  name={tarefa.topFeedback.isLiked ? "heart" : "heart-outline"} 
+                  size={18} 
+                  color={colors.primary} 
+                />
+                <Text style={[styles.feedbackLikeCount, { color: colors.primary }]}>
+                  {tarefa.topFeedback.likes}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.feedbackContent}>
+              <Text style={[styles.feedbackText, { color: colors.textSecondary }]}>
+                Seja o primeiro a comentar!
+              </Text>
+            </View>
+          )}
         </View>
       </Animated.View>
     );
@@ -933,6 +540,7 @@ export default function HomeScreen() {
           setSelectedPostContent('');
         }}
         postContent={selectedPostContent}
+        postId={selectedPostContent ? timeData.find(post => post.description === selectedPostContent)?.id : undefined}
       />
     </SafeAreaView>
   );
@@ -1060,8 +668,16 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     marginRight: 8,
   },
-  feedbackText: {
+  feedbackTextContainer: {
     flex: 1,
+    marginRight: 8,
+  },
+  feedbackAuthor: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  feedbackText: {
     fontSize: 13,
   },
   feedbackLikeButton: {

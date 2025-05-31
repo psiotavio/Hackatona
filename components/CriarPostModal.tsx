@@ -15,9 +15,15 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../contexts/ThemeContext";
 import { db, auth } from "../services/firebase/firebase.config";
-import { addDoc, collection } from "firebase/firestore";
+import { addDoc, collection, doc, getDoc } from "firebase/firestore";
+import { User } from "firebase/auth";
 
 const { width } = Dimensions.get("window");
+
+interface CustomUser extends User {
+	empresaId?: string;
+	nomeEmpresa?: string;
+}
 
 interface CustomModalProps {
 	visible: boolean;
@@ -55,6 +61,18 @@ export default function CriarPost({
 	}) => {
 		try {
 			const user = auth.currentUser;
+			let empresaId = null;
+			let nomeEmpresa = null;
+
+			if (user && !anonimo) {
+				const userDoc = await getDoc(doc(db, "users", user.uid));
+				if (userDoc.exists()) {
+					const userData = userDoc.data();
+					empresaId = userData.empresaId || null;
+					nomeEmpresa = userData.nomeEmpresa || null;
+				}
+			}
+
 			await addDoc(collection(db, "feedback"), {
 				titulo: feedbackData.titulo,
 				descricao: feedbackData.descricao,
@@ -64,6 +82,8 @@ export default function CriarPost({
 				userId: anonimo ? null : user ? user.uid : null,
 				userName: anonimo ? null : user ? user.displayName || user.email : null,
 				anonimo: anonimo,
+				empresaId: empresaId,
+				nomeEmpresa: nomeEmpresa,
 			});
 			console.log("Feedback criado com sucesso!");
 		} catch (error) {
