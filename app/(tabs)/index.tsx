@@ -355,7 +355,13 @@ export default function HomeScreen() {
             <View style={styles.cardHeader}>
               <View style={styles.authorContainer}>
                 <Image source={tarefa.author.avatar} style={styles.avatar} />
-                <Text style={[styles.authorName, { color: colors.titlePrimary }]}>{tarefa.title}</Text>
+                <Text 
+                  style={[styles.authorName, { color: colors.titlePrimary }]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {tarefa.title}
+                </Text>
               </View>
               <TouchableOpacity 
                 style={styles.bookmarkButton}
@@ -607,6 +613,8 @@ const styles = StyleSheet.create({
   authorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+    maxWidth: '85%',
   },
   avatar: {
     width: 36,
@@ -617,6 +625,7 @@ const styles = StyleSheet.create({
   authorName: {
     fontSize: 16,
     fontWeight: '600',
+    flex: 1,
   },
   bookmarkButton: {
     padding: 4,

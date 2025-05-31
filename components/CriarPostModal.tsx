@@ -11,11 +11,14 @@ import {
 	Platform,
 	ScrollView,
 	Switch,
+	Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from "../contexts/ThemeContext";
-import { db, auth } from "../services/firebase/firebase.config";
+import { db, auth, storage } from "../services/firebase/firebase.config";
 import { addDoc, collection, doc, getDoc } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { User } from "firebase/auth";
 
 const { width } = Dimensions.get("window");
@@ -47,10 +50,154 @@ export default function CriarPost({
 	const [imagem, setImagem] = useState("");
 	const [link, setLink] = useState("");
 	const [anonimo, setAnonimo] = useState(false);
+	const [uploading, setUploading] = useState(false);
 
 	useEffect(() => {
-		if (visible) setAnonimo(false);
+		if (visible) {
+			setAnonimo(false);
+			setImagem("");
+		}
 	}, [visible]);
+	
+	// Função para selecionar imagem da galeria
+	const pickImage = async () => {
+		try {
+			// Solicitar permissões específicas para galeria de fotos
+			const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+			
+			if (status !== 'granted') {
+				Alert.alert('Permissão negada', 'Desculpe, precisamos de permissão para acessar sua galeria de fotos!');
+				return;
+			}
+			
+			// Mostrar um menu de opções para Android
+			if (Platform.OS === 'android') {
+				Alert.alert(
+					'Selecionar imagem',
+					'Escolha de onde você quer selecionar a imagem',
+					[
+						{ 
+							text: 'Cancelar', 
+							style: 'cancel' 
+						},
+						{
+							text: 'Galeria de Fotos',
+							onPress: async () => {
+								await launchGallery();
+							}
+						},
+						{
+							text: 'Câmera',
+							onPress: async () => {
+								await launchCamera();
+							}
+						}
+					]
+				);
+			} else {
+				// Para iOS, abrir diretamente a galeria
+				await launchGallery();
+			}
+		} catch (error) {
+			console.error('Erro ao selecionar imagem:', error);
+			Alert.alert('Erro', 'Não foi possível selecionar a imagem');
+			setUploading(false);
+		}
+	};
+
+	// Função para abrir a galeria de fotos
+	const launchGallery = async () => {
+		try {
+			const result = await ImagePicker.launchImageLibraryAsync({
+				mediaTypes: ImagePicker.MediaTypeOptions.Images,
+				allowsEditing: true,
+				aspect: [4, 3],
+				quality: 0.8,
+				selectionLimit: 1, // Limitar a uma única imagem
+			});
+			
+			if (!result.canceled) {
+				await processSelectedImage(result.assets[0].uri);
+			}
+		} catch (error) {
+			console.error('Erro ao abrir galeria:', error);
+			Alert.alert('Erro', 'Não foi possível abrir a galeria de fotos');
+		}
+	};
+
+	// Função para abrir a câmera
+	const launchCamera = async () => {
+		try {
+			// Verificar permissões da câmera
+			const { status } = await ImagePicker.requestCameraPermissionsAsync();
+			if (status !== 'granted') {
+				Alert.alert('Permissão negada', 'Desculpe, precisamos de permissão para acessar sua câmera!');
+				return;
+			}
+			
+			const result = await ImagePicker.launchCameraAsync({
+				mediaTypes: ImagePicker.MediaTypeOptions.Images,
+				allowsEditing: true,
+				aspect: [4, 3],
+				quality: 0.8,
+			});
+			
+			if (!result.canceled) {
+				await processSelectedImage(result.assets[0].uri);
+			}
+		} catch (error) {
+			console.error('Erro ao abrir câmera:', error);
+			Alert.alert('Erro', 'Não foi possível abrir a câmera');
+		}
+	};
+
+	// Função para processar a imagem selecionada
+	const processSelectedImage = async (imageUri: string) => {
+		setUploading(true);
+		
+		try {
+			const uploadUrl = await uploadImageAsync(imageUri);
+			setImagem(uploadUrl);
+		} catch (e) {
+			console.error(e);
+			Alert.alert('Erro', 'Falha ao fazer upload da imagem');
+		} finally {
+			setUploading(false);
+		}
+	};
+
+	// Função para fazer upload da imagem para o Firebase Storage
+	const uploadImageAsync = async (uri: string): Promise<string> => {
+		// Converter URI para blob
+		const blob: Blob = await new Promise<Blob>((resolve, reject) => {
+			const xhr = new XMLHttpRequest();
+			xhr.onload = function () {
+				resolve(xhr.response as Blob);
+			};
+			xhr.onerror = function (e) {
+				console.log(e);
+				reject(new TypeError("Falha na requisição de rede"));
+			};
+			xhr.responseType = "blob";
+			xhr.open("GET", uri, true);
+			xhr.send(null);
+		});
+		
+		// Criar referência de arquivo no Storage
+		const fileRef = ref(storage, `posts/${new Date().getTime()}`);
+		
+		// Fazer upload do blob
+		await uploadBytes(fileRef, blob);
+		
+		// Liberar recursos do blob
+		if (Platform.OS !== 'web') {
+			// Usando URL.revokeObjectURL para liberar o blob
+			URL.revokeObjectURL(uri);
+		}
+		
+		// Obter URL de download
+		return await getDownloadURL(fileRef);
+	};
 
 	// Função para criar feedback no Firestore
 	const handleSendFeedback = async (feedbackData: {
@@ -163,29 +310,41 @@ export default function CriarPost({
 							multiline
 						/>
 						<Text style={[styles.label, { color: colors.textPrimary }]}>
-							Imagem (opcional, URL)
+							Imagem (opicional)
 						</Text>
-						<TextInput
+						<TouchableOpacity 
 							style={[
-								styles.input,
-								{
+								styles.imagePickerButton, 
+								{ 
 									backgroundColor: colors.background,
-									borderColor: colors.border,
-									color: colors.textPrimary,
-								},
+									borderColor: colors.border 
+								}
 							]}
-							placeholder="URL da imagem (opcional)"
-							placeholderTextColor={colors.textSecondary}
-							value={imagem}
-							onChangeText={setImagem}
-						/>
+							onPress={pickImage}
+							disabled={uploading}
+						>
+							<Ionicons name="image-outline" size={24} color={colors.primary} />
+							<Text style={[styles.imagePickerText, { color: colors.textPrimary }]}>
+								{uploading ? "Enviando imagem..." : imagem ? "Trocar imagem" : "Selecionar imagem da galeria"}
+							</Text>
+						</TouchableOpacity>
+						
 						{imagem ? (
-							<Image
-								source={{ uri: imagem }}
-								style={styles.imagePreview}
-								resizeMode="contain"
-							/>
+							<View style={styles.imagePreviewContainer}>
+								<Image
+									source={{ uri: imagem }}
+									style={styles.imagePreview}
+									resizeMode="cover"
+								/>
+								<TouchableOpacity 
+									style={styles.removeImageButton}
+									onPress={() => setImagem("")}
+								>
+									<Ionicons name="close-circle" size={24} color={colors.primary} />
+								</TouchableOpacity>
+							</View>
 						) : null}
+						
 						<Text style={[styles.label, { color: colors.textPrimary }]}>
 							Link (opcional)
 						</Text>
@@ -225,11 +384,18 @@ export default function CriarPost({
 						</View>
 					</ScrollView>
 					<TouchableOpacity
-						style={[styles.button, { backgroundColor: colors.primary }]}
+						style={[
+							styles.button, 
+							{ 
+								backgroundColor: colors.primary,
+								opacity: uploading ? 0.7 : 1
+							}
+						]}
 						onPress={handleSend}
+						disabled={uploading}
 					>
 						<Text style={[styles.buttonText, { color: colors.background }]}>
-							Enviar
+							{uploading ? "Aguarde..." : "Enviar"}
 						</Text>
 					</TouchableOpacity>
 				</View>
@@ -304,13 +470,36 @@ const styles = StyleSheet.create({
 		fontSize: 16,
 		marginBottom: 8,
 	},
+	imagePickerButton: {
+		width: "100%",
+		height: 48,
+		borderWidth: 1.5,
+		borderRadius: 24,
+		paddingHorizontal: 20,
+		marginBottom: 16,
+		flexDirection: "row",
+		alignItems: "center",
+	},
+	imagePickerText: {
+		fontSize: 16,
+		marginLeft: 12,
+	},
+	imagePreviewContainer: {
+		position: "relative",
+		marginBottom: 16,
+	},
 	imagePreview: {
 		width: "100%",
-		height: 120,
+		height: 200,
 		borderRadius: 12,
-		marginBottom: 8,
-		marginTop: 4,
 		backgroundColor: "#eee",
+	},
+	removeImageButton: {
+		position: "absolute",
+		top: 8,
+		right: 8,
+		backgroundColor: "rgba(255,255,255,0.8)",
+		borderRadius: 15,
 	},
 	button: {
 		position: "absolute",
