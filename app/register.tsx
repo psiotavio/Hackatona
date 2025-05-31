@@ -11,11 +11,14 @@ import {
 	ScrollView,
 	KeyboardAvoidingView,
 	Platform,
+	Alert,
 } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../contexts/ThemeContext";
+import { auth } from "../services/firebase/firebase.config";
+import { createUserWithEmailAndPassword } from "firebase/auth";
 
 const { width } = Dimensions.get("window");
 
@@ -33,52 +36,89 @@ export default function RegisterScreen() {
 	const [showRepetirSenha, setShowRepetirSenha] = useState(false);
 
 	const handleBack = () => {
-		router.push('/welcome');
+		router.push("/welcome");
 	};
 
-	const handleRegister = () => {
-		if (tipo === "cliente") {
-			router.replace('/pendente');
-		} else {
-			router.replace('/(tabs)');
+	const handleRegister = async () => {
+		if (
+			!nome ||
+			!email ||
+			!senha ||
+			!repetirSenha ||
+			!cpfCnpj ||
+			(tipo === "empresa" && !nomeEmpresa)
+		) {
+			Alert.alert("Erro", "Por favor, preencha todos os campos.");
+			return;
+		}
+		if (senha !== repetirSenha) {
+			Alert.alert("Erro", "As senhas não coincidem.");
+			return;
+		}
+		try {
+			await createUserWithEmailAndPassword(auth, email, senha);
+			// Aqui você pode salvar informações adicionais no Firestore, se desejar
+			if (tipo === "cliente") {
+				router.replace("/pendente");
+			} else {
+				router.replace("/(tabs)");
+			}
+		} catch (error: any) {
+			let message = "Erro ao registrar. Tente novamente.";
+			if (error.code === "auth/email-already-in-use") {
+				message = "Este e-mail já está em uso.";
+			} else if (error.code === "auth/invalid-email") {
+				message = "E-mail inválido.";
+			} else if (error.code === "auth/weak-password") {
+				message = "A senha deve ter pelo menos 6 caracteres.";
+			}
+			Alert.alert("Erro", message);
 		}
 	};
 
 	return (
 		<KeyboardAvoidingView
-			behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+			behavior={Platform.OS === "ios" ? "padding" : "height"}
 			style={[styles.container, { backgroundColor: colors.background }]}
 		>
-			<TouchableOpacity 
-				style={styles.backButton} 
-				onPress={handleBack}
-			>
+			<TouchableOpacity style={styles.backButton} onPress={handleBack}>
 				<Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
 			</TouchableOpacity>
 
-			<ScrollView 
+			<ScrollView
 				showsVerticalScrollIndicator={false}
 				contentContainerStyle={styles.scrollContent}
 			>
 				<View style={styles.logoContainer}>
 					<Image
-						source={currentTheme === 'dark' ? require('../assets/images/logos/logoVertical-light.png') : require('../assets/images/logos/logoVertical-Brown.png')}
+						source={
+							currentTheme === "dark"
+								? require("../assets/images/logos/logoVertical-light.png")
+								: require("../assets/images/logos/logoVertical-Brown.png")
+						}
 						style={styles.logo}
 						resizeMode="contain"
 					/>
 				</View>
 
-				<Text style={[styles.title, { color: colors.textPrimary }]}>Cadastro</Text>
+				<Text style={[styles.title, { color: colors.textPrimary }]}>
+					Cadastro
+				</Text>
 
 				<View style={styles.formContainer}>
 					<View style={styles.inputGroup}>
-						<Text style={[styles.label, { color: colors.textPrimary }]}>Nome</Text>
+						<Text style={[styles.label, { color: colors.textPrimary }]}>
+							Nome
+						</Text>
 						<TextInput
-							style={[styles.input, { 
-								backgroundColor: colors.background50,
-								borderColor: colors.border,
-								color: colors.textPrimary
-							}]}
+							style={[
+								styles.input,
+								{
+									backgroundColor: colors.background50,
+									borderColor: colors.border,
+									color: colors.textPrimary,
+								},
+							]}
 							value={nome}
 							onChangeText={setNome}
 							placeholder="Digite seu nome"
@@ -88,13 +128,18 @@ export default function RegisterScreen() {
 
 					{tipo === "empresa" && (
 						<View style={styles.inputGroup}>
-							<Text style={[styles.label, { color: colors.textPrimary }]}>Nome da empresa</Text>
+							<Text style={[styles.label, { color: colors.textPrimary }]}>
+								Nome da empresa
+							</Text>
 							<TextInput
-								style={[styles.input, { 
-									backgroundColor: colors.background50,
-									borderColor: colors.border,
-									color: colors.textPrimary
-								}]}
+								style={[
+									styles.input,
+									{
+										backgroundColor: colors.background50,
+										borderColor: colors.border,
+										color: colors.textPrimary,
+									},
+								]}
 								value={nomeEmpresa}
 								onChangeText={setNomeEmpresa}
 								placeholder="Digite o nome da empresa"
@@ -104,13 +149,18 @@ export default function RegisterScreen() {
 					)}
 
 					<View style={styles.inputGroup}>
-						<Text style={[styles.label, { color: colors.textPrimary }]}>Email</Text>
+						<Text style={[styles.label, { color: colors.textPrimary }]}>
+							Email
+						</Text>
 						<TextInput
-							style={[styles.input, { 
-								backgroundColor: colors.background50,
-								borderColor: colors.border,
-								color: colors.textPrimary
-							}]}
+							style={[
+								styles.input,
+								{
+									backgroundColor: colors.background50,
+									borderColor: colors.border,
+									color: colors.textPrimary,
+								},
+							]}
 							value={email}
 							onChangeText={setEmail}
 							placeholder="Digite seu email"
@@ -121,11 +171,18 @@ export default function RegisterScreen() {
 					</View>
 
 					<View style={styles.inputGroup}>
-						<Text style={[styles.label, { color: colors.textPrimary }]}>Senha</Text>
-						<View style={[styles.passwordContainer, { 
-							backgroundColor: colors.background50,
-							borderColor: colors.border
-						}]}>
+						<Text style={[styles.label, { color: colors.textPrimary }]}>
+							Senha
+						</Text>
+						<View
+							style={[
+								styles.passwordContainer,
+								{
+									backgroundColor: colors.background50,
+									borderColor: colors.border,
+								},
+							]}
+						>
 							<TextInput
 								style={[styles.passwordInput, { color: colors.textPrimary }]}
 								value={senha}
@@ -148,11 +205,18 @@ export default function RegisterScreen() {
 					</View>
 
 					<View style={styles.inputGroup}>
-						<Text style={[styles.label, { color: colors.textPrimary }]}>Repetir Senha</Text>
-						<View style={[styles.passwordContainer, { 
-							backgroundColor: colors.background50,
-							borderColor: colors.border
-						}]}>
+						<Text style={[styles.label, { color: colors.textPrimary }]}>
+							Repetir Senha
+						</Text>
+						<View
+							style={[
+								styles.passwordContainer,
+								{
+									backgroundColor: colors.background50,
+									borderColor: colors.border,
+								},
+							]}
+						>
 							<TextInput
 								style={[styles.passwordInput, { color: colors.textPrimary }]}
 								value={repetirSenha}
@@ -175,13 +239,18 @@ export default function RegisterScreen() {
 					</View>
 
 					<View style={styles.inputGroup}>
-						<Text style={[styles.label, { color: colors.textPrimary }]}>{tipo === "empresa" ? "CNPJ" : "CPF"}</Text>
+						<Text style={[styles.label, { color: colors.textPrimary }]}>
+							{tipo === "empresa" ? "CNPJ" : "CPF"}
+						</Text>
 						<TextInput
-							style={[styles.input, { 
-								backgroundColor: colors.background50,
-								borderColor: colors.border,
-								color: colors.textPrimary
-							}]}
+							style={[
+								styles.input,
+								{
+									backgroundColor: colors.background50,
+									borderColor: colors.border,
+									color: colors.textPrimary,
+								},
+							]}
 							value={cpfCnpj}
 							onChangeText={setCpfCnpj}
 							placeholder={`Digite seu ${tipo === "empresa" ? "CNPJ" : "CPF"}`}
@@ -195,27 +264,51 @@ export default function RegisterScreen() {
 							style={styles.radioOption}
 							onPress={() => setTipo("empresa")}
 						>
-							<View style={[styles.radioCircle, { borderColor: colors.primary }]}>
-								{tipo === "empresa" && <View style={[styles.radioDot, { backgroundColor: colors.primary }]} />}
+							<View
+								style={[styles.radioCircle, { borderColor: colors.primary }]}
+							>
+								{tipo === "empresa" && (
+									<View
+										style={[
+											styles.radioDot,
+											{ backgroundColor: colors.primary },
+										]}
+									/>
+								)}
 							</View>
-							<Text style={[styles.radioLabel, { color: colors.textPrimary }]}>Empresa</Text>
+							<Text style={[styles.radioLabel, { color: colors.textPrimary }]}>
+								Empresa
+							</Text>
 						</Pressable>
 						<Pressable
 							style={styles.radioOption}
 							onPress={() => setTipo("cliente")}
 						>
-							<View style={[styles.radioCircle, { borderColor: colors.primary }]}>
-								{tipo === "cliente" && <View style={[styles.radioDot, { backgroundColor: colors.primary }]} />}
+							<View
+								style={[styles.radioCircle, { borderColor: colors.primary }]}
+							>
+								{tipo === "cliente" && (
+									<View
+										style={[
+											styles.radioDot,
+											{ backgroundColor: colors.primary },
+										]}
+									/>
+								)}
 							</View>
-							<Text style={[styles.radioLabel, { color: colors.textPrimary }]}>Cliente</Text>
+							<Text style={[styles.radioLabel, { color: colors.textPrimary }]}>
+								Cliente
+							</Text>
 						</Pressable>
 					</View>
 
-					<TouchableOpacity 
+					<TouchableOpacity
 						style={[styles.button, { backgroundColor: colors.primary }]}
 						onPress={handleRegister}
 					>
-						<Text style={[styles.buttonText, { color: colors.background }]}>Cadastrar</Text>
+						<Text style={[styles.buttonText, { color: colors.background }]}>
+							Cadastrar
+						</Text>
 					</TouchableOpacity>
 				</View>
 			</ScrollView>
@@ -233,13 +326,13 @@ const styles = StyleSheet.create({
 		paddingTop: 80,
 	},
 	backButton: {
-		position: 'absolute',
+		position: "absolute",
 		top: 40,
 		left: 20,
 		zIndex: 10,
 	},
 	logoContainer: {
-		alignItems: 'center',
+		alignItems: "center",
 		marginBottom: 24,
 	},
 	logo: {
