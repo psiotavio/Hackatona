@@ -6,18 +6,18 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { StatusBar } from 'react-native';
 import 'react-native-reanimated';
-import { ThemeProvider, useTheme } from '@/src/contexts/ThemeContext';
+import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
 
-export {
+export { 
   // Catch any errors thrown by the Layout component.
   ErrorBoundary,
-} from 'expo-router';
-
+} from 'expo-router';    
+  
 export const unstable_settings = {
   // Ensure that reloading on `/modal` keeps a back button present.
-  initialRouteName: '(tabs)',
+  initialRouteName: 'welcome', 
 };
-
+ 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
@@ -30,7 +30,7 @@ function RootLayoutNav() {
       <StatusBar
         barStyle={currentTheme === 'dark' ? 'light-content' : 'dark-content'}
         backgroundColor={navigationTheme.colors.background}
-      />
+      />  
       <Stack
         screenOptions={{
           headerStyle: {
@@ -39,10 +39,20 @@ function RootLayoutNav() {
           headerTintColor: navigationTheme.colors.text,
           headerTitleStyle: {
             color: navigationTheme.colors.text,
-          },
+          }, 
         }}
       >
+        <Stack.Screen name="welcome" options={{ headerShown: false }} />
+        <Stack.Screen name="pendente" options={{ headerShown: false }} />
+        <Stack.Screen name="login" options={{ headerShown: false }} />
+        <Stack.Screen name="register" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen 
+          name="card-details" 
+          options={{ 
+            headerShown: false,
+          }} 
+        />
         <Stack.Screen 
           name="modal" 
           options={{ 
