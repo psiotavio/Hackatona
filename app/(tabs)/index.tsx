@@ -121,12 +121,12 @@ export default function HomeScreen() {
   // Função para buscar os membros da empresa
   const fetchEmpresaMembers = async (empresaId: string) => {
     try {
+      // Buscar clientes aprovados
       const q = query(
         collection(db, "users"),
         where("empresaId", "==", empresaId),
         where("status", "==", "approved")
       );
-
       const querySnapshot = await getDocs(q);
       const members = querySnapshot.docs.map(doc => ({
         id: doc.id,
@@ -134,8 +134,21 @@ export default function HomeScreen() {
         avatar: { uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(doc.data().nome)}&background=8B4513&color=fff` }
       }));
 
-      console.log("Membros da empresa encontrados:", members.length);
-      setEmpresaData(members);
+      // Buscar o usuário do tipo empresa
+      const empresaDoc = await getDocs(query(
+        collection(db, "users"),
+        where("tipo", "==", "empresa"),
+        where("_id", "==", empresaId)
+      ));
+      const empresaUser = empresaDoc.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        avatar: { uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(doc.data().nome)}&background=8B4513&color=fff` }
+      }));
+
+      const allMembers = [...members, ...empresaUser];
+      setEmpresaData(allMembers);
+      console.log("Membros da empresa encontrados (incluindo empresa):", allMembers.length);
     } catch (error) {
       console.error("Erro ao buscar membros da empresa:", error);
       Alert.alert("Erro", "Não foi possível carregar os membros da empresa");

@@ -8,9 +8,10 @@ interface HeaderProps {
   title?: string;
   pontos?: number;
   maximoPontosPorDia?: number;
+  actions?: React.ReactNode;
 }
 
-const Header: React.FC<HeaderProps> = ({ title, pontos, maximoPontosPorDia }) => {
+const Header: React.FC<HeaderProps> = ({ title, pontos, maximoPontosPorDia, actions }) => {
   const { colors } = useTheme();
   return (
     <View style={[styles.header, { borderBottomColor: colors.border }]}> 
@@ -22,6 +23,7 @@ const Header: React.FC<HeaderProps> = ({ title, pontos, maximoPontosPorDia }) =>
       <View style={styles.headerContent}>
         <Text style={[styles.headerTitle, { color: colors.titlePrimary }]}>{title}</Text>
       </View>
+      {actions && <View style={styles.headerActions}>{actions}</View>}
       {typeof pontos === 'number' && (
         <View style={[styles.pointsContainer, { backgroundColor: colors.background50 }]}> 
           <Text style={[styles.pointsText, { color: colors.textPrimary }]}> 
@@ -55,6 +57,11 @@ const styles = StyleSheet.create({
   headerContent: {
     flex: 1,
     alignItems: 'center',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   headerTitle: {
     fontSize: 20,

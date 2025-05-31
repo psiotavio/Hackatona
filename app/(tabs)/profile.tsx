@@ -188,7 +188,7 @@ const profileCardStyles = StyleSheet.create({
 });
 
 export default function ProfileScreen() {
-  const { colors } = useTheme();
+  const { colors, themeMode, setThemeMode } = useTheme();
   const router = useRouter();
   const [tab, setTab] = useState<'posts' | 'feedbacks' | 'public'>('posts');
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -207,6 +207,7 @@ export default function ProfileScreen() {
   const [newQuestion, setNewQuestion] = useState('');
   const [qrCodeValue, setQrCodeValue] = useState('');
   const [showQRCode, setShowQRCode] = useState(false);
+  const [themeModalVisible, setThemeModalVisible] = useState(false);
 
   useEffect(() => {
     fetchUserData();
@@ -535,7 +536,20 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <Header pontos={userPoints} maximoPontosPorDia={maximoPontosPorDia} />
+      <Header
+        pontos={userPoints}
+        maximoPontosPorDia={maximoPontosPorDia}
+        actions={
+          <>
+            <TouchableOpacity onPress={() => setThemeModalVisible(true)} style={{ marginRight: 8 }}>
+              <Ionicons name={themeMode === 'dark' ? 'moon' : themeMode === 'light' ? 'sunny' : 'desktop-outline'} size={22} color={colors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleLogout}>
+              <Ionicons name="log-out-outline" size={22} color={colors.error} />
+            </TouchableOpacity>
+          </>
+        }
+      />
       <ScrollView style={styles.scrollView} contentContainerStyle={{ paddingBottom: 100 }}>
         <View style={styles.profileTopSection}>
           <View style={styles.avatarWrapper}>
@@ -806,6 +820,43 @@ export default function ProfileScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+      {/* Modal de seleção de tema */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={themeModalVisible}
+        onRequestClose={() => setThemeModalVisible(false)}
+      >
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
+          <View style={{ backgroundColor: colors.background, borderRadius: 16, padding: 24, minWidth: 260 }}>
+            <Text style={{ fontSize: 18, fontWeight: 'bold', color: colors.titlePrimary, marginBottom: 16 }}>Escolha o tema</Text>
+            <TouchableOpacity
+              style={[styles.themeOption, themeMode === 'light' && { borderColor: colors.primary, backgroundColor: colors.background50 }]}
+              onPress={() => { setThemeMode('light'); setThemeModalVisible(false); }}
+            >
+              <Ionicons name="sunny" size={22} color={themeMode === 'light' ? colors.primary : colors.textSecondary} />
+              <Text style={[styles.themeOptionText, { color: themeMode === 'light' ? colors.primary : colors.textSecondary }]}>Claro</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.themeOption, themeMode === 'dark' && { borderColor: colors.primary, backgroundColor: colors.background50 }]}
+              onPress={() => { setThemeMode('dark'); setThemeModalVisible(false); }}
+            >
+              <Ionicons name="moon" size={22} color={themeMode === 'dark' ? colors.primary : colors.textSecondary} />
+              <Text style={[styles.themeOptionText, { color: themeMode === 'dark' ? colors.primary : colors.textSecondary }]}>Escuro</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.themeOption, themeMode === 'system' && { borderColor: colors.primary, backgroundColor: colors.background50 }]}
+              onPress={() => { setThemeMode('system'); setThemeModalVisible(false); }}
+            >
+              <Ionicons name="desktop-outline" size={22} color={themeMode === 'system' ? colors.primary : colors.textSecondary} />
+              <Text style={[styles.themeOptionText, { color: themeMode === 'system' ? colors.primary : colors.textSecondary }]}>Sistema</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setThemeModalVisible(false)} style={{ marginTop: 16, alignSelf: 'flex-end' }}>
+              <Text style={{ color: colors.primary, fontWeight: 'bold', fontSize: 16 }}>Fechar</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -1160,5 +1211,60 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  themeSelectorCard: {
+    marginHorizontal: 20,
+    marginTop: 24,
+    marginBottom: 12,
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: '#fff1',
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
+  },
+  themeSelectorTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  themeSelectorRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  themeOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
+    borderRadius: 12,
+    paddingVertical: 10,
+    marginHorizontal: 4,
+    backgroundColor: 'transparent',
+  },
+  themeOptionText: {
+    marginLeft: 8,
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  logoutButtonBig: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 20,
+    marginTop: 16,
+    paddingVertical: 14,
+    borderRadius: 16,
+    elevation: 1,
+  },
+  logoutButtonText: {
+    marginLeft: 8,
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 }); 
