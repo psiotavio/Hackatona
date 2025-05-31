@@ -14,6 +14,7 @@ import * as MediaLibrary from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
 import Header from '../components/Header';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '@/contexts/AuthContext';
 
 // Função utilitária para gerar avatar
 const getAvatarUri = (name: string) => ({
@@ -302,6 +303,7 @@ export default function ProfileScreen() {
 	const [qrCodeValue, setQrCodeValue] = useState('');
 	const [showQRCode, setShowQRCode] = useState(false);
 	const [themeModalVisible, setThemeModalVisible] = useState(false);
+	const { logout } = useAuth();
 
 	useEffect(() => {
 		fetchUserData();
@@ -485,28 +487,29 @@ export default function ProfileScreen() {
 	};
 
 	const handleLogout = async () => {
-		Alert.alert("Sair", "Tem certeza que deseja sair?", [
-			{
-				text: "Cancelar",
-				style: "cancel",
-			},
-			{
-				text: "Sair",
-				style: "destructive",
-				onPress: async () => {
-					try {
-						await signOut(auth);
-						await AsyncStorage.removeItem("userType");
-						router.replace("/welcome");
-					} catch (error) {
-						Alert.alert(
-							"Erro",
-							"Não foi possível fazer logout. Tente novamente."
-						);
+		try {
+			// Exibir confirmação
+			Alert.alert(
+				"Logout",
+				"Tem certeza que deseja sair?",
+				[
+					{ text: "Cancelar", style: "cancel" },
+					{ 
+						text: "Sair", 
+						onPress: async () => {
+							await logout();
+						},
+						style: 'destructive'
 					}
-				},
-			},
-		]);
+				]
+			);
+		} catch (error) {
+			console.error('Erro ao fazer logout:', error);
+			Alert.alert(
+				"Erro",
+				"Não foi possível fazer logout. Tente novamente."
+			);
+		}
 	};
 
 	const handleTabChange = (nextTab: "posts" | "feedbacks" | "public") => {
