@@ -38,7 +38,7 @@ A partir disso, nasceu a ideia do **Feedin**: um app mobile moderno e gamificado
 
 ## 🖼️ Visão do aplicativo
 
-Em breve adicionaremos mockups e screenshots demonstrando as principais funcionalidades e visual do Feedin.
+Como pegamos o time marrom 
 
 ## ⚙️ Tecnologias Utilizadas
 
