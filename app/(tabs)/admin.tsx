@@ -18,6 +18,7 @@ import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth, db } from '@/services/firebase/firebase.config';
 import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { useTheme } from '@/contexts/ThemeContext';
 
 // Função para gerar avatar com as iniciais do nome
 const getAvatarUri = (name: string) => {
@@ -42,9 +43,28 @@ export default function AdminScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [usuarioSelecionado, setUsuarioSelecionado] = useState<Usuario | null>(null);
   const router = useRouter();
+  const { colors } = useTheme();
 
   useEffect(() => {
-    carregarSolicitacoes();
+    // Verificar se o usuário é uma empresa
+    const verificarTipoUsuario = async () => {
+      try {
+        const userType = await AsyncStorage.getItem('userType');
+        if (userType !== 'empresa') {
+          // Redirecionar para a tela inicial se não for empresa
+          router.replace('/');
+          return;
+        }
+        
+        // Se for empresa, carrega as solicitações
+        carregarSolicitacoes();
+      } catch (error) {
+        console.error("Erro ao verificar tipo de usuário:", error);
+        router.replace('/');
+      }
+    };
+
+    verificarTipoUsuario();
   }, []);
 
   const carregarSolicitacoes = async () => {
@@ -119,13 +139,13 @@ export default function AdminScreen() {
   };
 
   const renderSolicitacao = ({ item }: { item: Usuario }) => (
-    <View style={styles.solicitacaoContainer}>
+    <View style={[styles.solicitacaoContainer, { backgroundColor: colors.background50 }]}>
       <View style={styles.solicitacaoHeader}>
         <Image source={item.avatar} style={styles.avatar} />
         <View style={styles.solicitacaoInfo}>
-          <Text style={styles.solicitacaoNome}>{item.nome}</Text>
-          <Text style={styles.solicitacaoEmail}>{item.email}</Text>
-          <Text style={styles.solicitacaoData}>Solicitação: {item.dataSolicitacao}</Text>
+          <Text style={[styles.solicitacaoNome, { color: colors.titlePrimary }]}>{item.nome}</Text>
+          <Text style={[styles.solicitacaoEmail, { color: colors.textSecondary }]}>{item.email}</Text>
+          <Text style={[styles.solicitacaoData, { color: colors.textSecondary }]}>Solicitação: {item.dataSolicitacao}</Text>
         </View>
       </View>
       
@@ -150,17 +170,17 @@ export default function AdminScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar style="dark" />
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar style={colors.background === '#2C1810' ? 'light' : 'dark'} />
       
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Solicitações Pendentes</Text>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        <Text style={[styles.headerTitle, { color: colors.titlePrimary }]}>Solicitações Pendentes</Text>
       </View>
       
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.conteudo}>
           {solicitacoes.length === 0 ? (
-            <Text style={styles.semSolicitacoes}>
+            <Text style={[styles.semSolicitacoes, { color: colors.textSecondary }]}>
               Não há solicitações pendentes no momento.
             </Text>
           ) : (
@@ -180,7 +200,6 @@ export default function AdminScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF5E6',
   },
   header: {
     flexDirection: 'row',
@@ -189,12 +208,10 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5D3B3',
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#8B4513',
   },
   scrollView: {
     flex: 1,
@@ -205,11 +222,9 @@ const styles = StyleSheet.create({
   semSolicitacoes: {
     textAlign: 'center',
     fontSize: 16,
-    color: '#666',
     marginTop: 20,
   },
   solicitacaoContainer: {
-    backgroundColor: '#F2E2CE',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
@@ -236,15 +251,12 @@ const styles = StyleSheet.create({
   solicitacaoNome: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#333',
   },
   solicitacaoEmail: {
     fontSize: 14,
-    color: '#555',
   },
   solicitacaoData: {
     fontSize: 12,
-    color: '#777',
     marginTop: 4,
   },
   acaoContainer: {

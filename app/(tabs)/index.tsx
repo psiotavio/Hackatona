@@ -15,15 +15,43 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
+import { ChatModal } from '@/components/ChatModal';
+import { useTheme } from '@/contexts/ThemeContext';
 
 // Função para gerar avatar com as iniciais do nome
-const getAvatarUri = (name) => {
+const getAvatarUri = (name: string) => {
   const formattedName = encodeURIComponent(name);
   return { uri: `https://ui-avatars.com/api/?name=${formattedName}&background=8B4513&color=fff` };
 };
 
+interface Feedback {
+  id: string;
+  author: {
+    name: string;
+    avatar: any;
+  };
+  content: string;
+  likes: number;
+  isLiked: boolean;
+}
+
+interface Post {
+  id: string;
+  author: {
+    name: string;
+    avatar: any;
+  };
+  title: string;
+  description: string;
+  likes: number;
+  isLiked: boolean;
+  isFavorite: boolean;
+  comments: number;
+  topFeedback: Feedback;
+}
+
 // Dados fictícios para os cards de time
-const TIME_DATA = [
+const TIME_DATA: Post[] = [
   {
     id: '1',
     author: {
@@ -165,7 +193,7 @@ const TIME_DATA = [
 ];
 
 // Dados fictícios para os cards de empresa
-const EMPRESA_DATA = [
+const EMPRESA_DATA: Post[] = [
   {
     id: '101',
     author: {
@@ -285,13 +313,16 @@ const EMPRESA_DATA = [
 
 export default function HomeScreen() {
   const [activeTab, setActiveTab] = useState('time'); // 'time' ou 'empresa'
-  const [timeData, setTimeData] = useState([...TIME_DATA]);
-  const [empresaData, setEmpresaData] = useState([...EMPRESA_DATA]);
+  const [timeData, setTimeData] = useState<Post[]>([...TIME_DATA]);
+  const [empresaData, setEmpresaData] = useState<Post[]>([...EMPRESA_DATA]);
+  const [isChatModalVisible, setIsChatModalVisible] = useState(false);
+  const [selectedPostContent, setSelectedPostContent] = useState('');
   const scrollY = useRef(new Animated.Value(0)).current;
   const router = useRouter();
+  const { colors } = useTheme();
 
   // Função para lidar com curtidas
-  const handleLike = (cardId, isFromFeedback = false) => {
+  const handleLike = (cardId: string, isFromFeedback = false) => {
     if (activeTab === 'time') {
       setTimeData(prev => prev.map(card => {
         if (isFromFeedback) {
@@ -340,7 +371,7 @@ export default function HomeScreen() {
   };
 
   // Função para lidar com favoritos
-  const handleFavorite = (cardId) => {
+  const handleFavorite = (cardId: string) => {
     if (activeTab === 'time') {
       setTimeData(prev => prev.map(card => {
         if (card.id === cardId) {
@@ -359,7 +390,7 @@ export default function HomeScreen() {
   };
 
   // Função para compartilhar
-  const handleShare = async (tarefa) => {
+  const handleShare = async (tarefa: Post) => {
     try {
       // Texto formatado diferente dependendo do tipo de conteúdo (time ou empresa)
       let message = '';
@@ -415,31 +446,33 @@ export default function HomeScreen() {
   };
 
   // Função para exibir comentários
-  const handleComments = (cardId) => {
-    Alert.alert('Comentários', 'Funcionalidade de comentários será implementada em breve!');
+  const handleComments = (cardId: string) => {
+    const currentData = activeTab === 'time' ? timeData : empresaData;
+    const selectedPost = currentData.find(card => card.id === cardId);
+    
+    if (selectedPost) {
+      setSelectedPostContent(selectedPost.description);
+      setIsChatModalVisible(true);
+    }
   };
 
-  const renderCard = (tarefa, index) => {
-    // Calculando valores para animação suave sem fazer os cards sumirem
-    const cardHeight = 200; // Altura aproximada do card em pixels
+  const renderCard = (tarefa: Post, index: number) => {
+    const cardHeight = 200;
     const position = index * cardHeight;
     
-    // Definindo ranges mais adequados para a animação
     const inputRange = [
-      position - 300, // Antes do card entrar na tela
-      position - 100, // Card começando a aparecer
-      position + 100, // Card totalmente visível
-      position + 300  // Card saindo da tela
+      position - 300,
+      position - 100,
+      position + 100,
+      position + 300
     ];
     
-    // Efeito de escala sutil para dar sensação de profundidade
     const scale = scrollY.interpolate({
       inputRange,
       outputRange: [0.98, 1, 1, 0.98],
       extrapolate: 'clamp',
     });
     
-    // Efeito de translação para movimento leve enquanto rola
     const translateY = scrollY.interpolate({
       inputRange,
       outputRange: [5, 0, 0, 5],
@@ -459,11 +492,11 @@ export default function HomeScreen() {
           }
         ]}
       >
-        <View style={styles.card}>
+        <View style={[styles.card, { backgroundColor: colors.background50 }]}>
           <View style={styles.cardHeader}>
             <View style={styles.authorContainer}>
               <Image source={tarefa.author.avatar} style={styles.avatar} />
-              <Text style={styles.authorName}>{tarefa.title}</Text>
+              <Text style={[styles.authorName, { color: colors.titlePrimary }]}>{tarefa.title}</Text>
             </View>
             <TouchableOpacity 
               style={styles.bookmarkButton}
@@ -472,12 +505,12 @@ export default function HomeScreen() {
               <Ionicons 
                 name={tarefa.isFavorite ? "bookmark" : "bookmark-outline"} 
                 size={24} 
-                color="#8B4513" 
+                color={colors.primary} 
               />
             </TouchableOpacity>
           </View>
           
-          <Text style={styles.cardDescription}>{tarefa.description}</Text>
+          <Text style={[styles.cardDescription, { color: colors.textSecondary }]}>{tarefa.description}</Text>
           
           <View style={styles.cardActions}>
             <TouchableOpacity 
@@ -487,35 +520,34 @@ export default function HomeScreen() {
               <Ionicons 
                 name={tarefa.isLiked ? "heart" : "heart-outline"} 
                 size={24} 
-                color="#8B4513" 
+                color={colors.primary} 
               />
               {tarefa.likes > 0 && (
-                <Text style={styles.likeCount}>{tarefa.likes}</Text>
+                <Text style={[styles.likeCount, { color: colors.primary }]}>{tarefa.likes}</Text>
               )}
             </TouchableOpacity>
             <TouchableOpacity 
               style={styles.actionButton}
               onPress={() => handleComments(tarefa.id)}
             >
-              <Ionicons name="chatbubble-outline" size={22} color="#8B4513" />
+              <Ionicons name="chatbubble-outline" size={22} color={colors.primary} />
               {tarefa.comments > 0 && (
-                <Text style={styles.commentCount}>{tarefa.comments}</Text>
+                <Text style={[styles.commentCount, { color: colors.primary }]}>{tarefa.comments}</Text>
               )}
             </TouchableOpacity>
             <TouchableOpacity 
               style={styles.actionButton}
               onPress={() => handleShare(tarefa)}
             >
-              <Ionicons name="paper-plane-outline" size={22} color="#8B4513" />
+              <Ionicons name="paper-plane-outline" size={22} color={colors.primary} />
             </TouchableOpacity>
           </View>
         </View>
         
-        {/* Feedback "filho" - o mais curtido */}
-        <View style={styles.feedbackContainer}>
+        <View style={[styles.feedbackContainer, { backgroundColor: colors.background50 }]}>
           <View style={styles.feedbackContent}>
             <Image source={tarefa.topFeedback.author.avatar} style={styles.feedbackAvatar} />
-            <Text style={styles.feedbackText}>{tarefa.topFeedback.content}</Text>
+            <Text style={[styles.feedbackText, { color: colors.textSecondary }]}>{tarefa.topFeedback.content}</Text>
             <TouchableOpacity 
               style={styles.feedbackLikeButton}
               onPress={() => handleLike(tarefa.topFeedback.id, true)}
@@ -523,9 +555,9 @@ export default function HomeScreen() {
               <Ionicons 
                 name={tarefa.topFeedback.isLiked ? "heart" : "heart-outline"} 
                 size={18} 
-                color="#8B4513" 
+                color={colors.primary} 
               />
-              <Text style={styles.feedbackLikeCount}>{tarefa.topFeedback.likes}</Text>
+              <Text style={[styles.feedbackLikeCount, { color: colors.primary }]}>{tarefa.topFeedback.likes}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -537,40 +569,18 @@ export default function HomeScreen() {
   const currentData = activeTab === 'time' ? timeData : empresaData;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar style="dark" />
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar style={colors.background === '#2C1810' ? 'light' : 'dark'} />
       
       {/* Header com abas */}
-      <View style={styles.header}>
-        <View style={styles.tabsContainer}>
-          <TouchableOpacity 
-            style={[styles.tab, activeTab === 'time' && styles.activeTab]}
-            onPress={() => setActiveTab('time')}
-          >
-            <Text 
-              style={[
-                styles.tabText, 
-                activeTab === 'time' && styles.activeTabText
-              ]}
-            >
-              Time
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.tab, activeTab === 'empresa' && styles.activeTab]}
-            onPress={() => setActiveTab('empresa')}
-          >
-            <Text 
-              style={[
-                styles.tabText, 
-                activeTab === 'empresa' && styles.activeTabText
-              ]}
-            >
-              Empresa
-            </Text>
-          </TouchableOpacity>
-        </View>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        <Text style={[styles.headerTitle, { color: colors.titlePrimary }]}>Feed</Text>
+        <TouchableOpacity 
+          style={[styles.chatButton, { backgroundColor: colors.background50 }]}
+          onPress={() => setIsChatModalVisible(true)}
+        >
+          <Ionicons name="chatbubble-outline" size={24} color={colors.primary} />
+        </TouchableOpacity>
       </View>
       
       {/* Conteúdo principal */}
@@ -586,6 +596,14 @@ export default function HomeScreen() {
         {currentData.map((tarefa, index) => renderCard(tarefa, index))}
         <View style={styles.scrollEndSpacer} />
       </Animated.ScrollView>
+      <ChatModal 
+        visible={isChatModalVisible}
+        onClose={() => {
+          setIsChatModalVisible(false);
+          setSelectedPostContent('');
+        }}
+        postContent={selectedPostContent}
+      />
     </SafeAreaView>
   );
 }
@@ -593,7 +611,6 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF5E6', // Fundo bege claro
   },
   header: {
     flexDirection: 'row',
@@ -602,35 +619,14 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5D3B3', // Cor bege mais escura para a borda
   },
-  tabsContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'center', // Centraliza as abas
-    alignItems: 'center',
-    marginRight: 24, // Espaço para equilibrar com o botão de voltar
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
   },
-  tab: {
-    marginHorizontal: 12,
-    paddingBottom: 8,
-    paddingHorizontal: 8,
-  },
-  activeTab: {
-    borderBottomWidth: 2,
-    borderBottomColor: '#8B4513', // Marrom para combinar com o resto da UI
-  },
-  tabText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#9E9E9E',
-  },
-  activeTabText: {
-    color: '#8B4513',
-    fontWeight: '600',
-  },
-  backButton: {
+  chatButton: {
     padding: 8,
+    borderRadius: 20,
   },
   scrollView: {
     flex: 1,
@@ -641,7 +637,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   card: {
-    backgroundColor: '#F2E2CE', // Bege mais escuro para o card
     borderRadius: 16,
     padding: 16,
     shadowColor: '#000',
@@ -669,14 +664,12 @@ const styles = StyleSheet.create({
   authorName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
   },
   bookmarkButton: {
     padding: 4,
   },
   cardDescription: {
     fontSize: 14,
-    color: '#555',
     marginBottom: 16,
   },
   cardActions: {
@@ -691,13 +684,11 @@ const styles = StyleSheet.create({
   likeCount: {
     marginLeft: 4,
     fontSize: 12,
-    color: '#8B4513',
     fontWeight: '500',
   },
   commentCount: {
     marginLeft: 4,
     fontSize: 12,
-    color: '#8B4513',
     fontWeight: '500',
   },
   feedbackContainer: {
@@ -705,7 +696,6 @@ const styles = StyleSheet.create({
     zIndex: -1,
     marginLeft: 20,
     marginRight: 20,
-    backgroundColor: '#F2E2CE', // Mesmo cor do card
     borderRadius: 12,
     padding: 12,
     shadowColor: '#000',
@@ -728,7 +718,6 @@ const styles = StyleSheet.create({
   feedbackText: {
     flex: 1,
     fontSize: 13,
-    color: '#333',
   },
   feedbackLikeButton: {
     padding: 4,
@@ -738,7 +727,6 @@ const styles = StyleSheet.create({
   feedbackLikeCount: {
     marginLeft: 2,
     fontSize: 10,
-    color: '#8B4513',
     fontWeight: '500',
   },
   scrollEndSpacer: {

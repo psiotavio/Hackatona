@@ -20,7 +20,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../contexts/ThemeContext";
 import { auth, db } from "../services/firebase/firebase.config";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc, collection, query, where, getDocs } from "firebase/firestore";
+import {
+	doc,
+	setDoc,
+	collection,
+	query,
+	where,
+	getDocs,
+} from "firebase/firestore";
 
 const { width } = Dimensions.get("window");
 
@@ -41,6 +48,26 @@ export default function RegisterScreen() {
 	const [showResults, setShowResults] = useState(false);
 	const [selectedEmpresa, setSelectedEmpresa] = useState<any>(null);
 
+	const formatCNPJ = (value: string) => {
+		let cnpj = value.replace(/\D/g, "");
+		cnpj = cnpj.slice(0, 14);
+
+		cnpj = cnpj.replace(/^(\d{2})(\d)/, "$1.$2");
+		cnpj = cnpj.replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3");
+		cnpj = cnpj.replace(/\.(\d{3})(\d)/, ".$1/$2");
+		cnpj = cnpj.replace(/(\d{4})(\d)/, "$1-$2");
+
+		return cnpj;
+	};
+
+	const formatCPF = (value: string) => {
+		return value
+			.replace(/\D/g, "")
+			.replace(/(\d{3})(\d)/, "$1.$2")
+			.replace(/(\d{3})(\d)/, "$1.$2")
+			.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+	};
+
 	useEffect(() => {
 		const searchEmpresas = async () => {
 			if (searchQuery.length < 2) {
@@ -57,9 +84,9 @@ export default function RegisterScreen() {
 				);
 
 				const querySnapshot = await getDocs(q);
-				const empresasList = querySnapshot.docs.map(doc => ({
+				const empresasList = querySnapshot.docs.map((doc) => ({
 					id: doc.id,
-					...doc.data()
+					...doc.data(),
 				}));
 				setEmpresas(empresasList);
 			} catch (error) {
@@ -99,16 +126,21 @@ export default function RegisterScreen() {
 			return;
 		}
 		try {
-			const userCredential = await createUserWithEmailAndPassword(auth, email, senha);
+			const userCredential = await createUserWithEmailAndPassword(
+				auth,
+				email,
+				senha
+			);
 			const user = userCredential.user;
-			
+
 			// Criar documento do usuário no Firestore
 			await setDoc(doc(db, "users", user.uid), {
 				nome,
 				email,
 				cpfCnpj,
 				tipo,
-				nomeEmpresa: tipo === "empresa" ? nomeEmpresa : selectedEmpresa.nomeEmpresa,
+				nomeEmpresa:
+					tipo === "empresa" ? nomeEmpresa : selectedEmpresa.nomeEmpresa,
 				empresaId: tipo === "cliente" ? selectedEmpresa.id : null,
 				status: tipo === "cliente" ? "pending" : "approved",
 				dataCriacao: new Date().toISOString(),
@@ -227,7 +259,12 @@ export default function RegisterScreen() {
 									onFocus={() => setShowResults(true)}
 								/>
 								{showResults && empresas.length > 0 && (
-									<View style={[styles.resultsContainer, { backgroundColor: colors.background50 }]}>
+									<View
+										style={[
+											styles.resultsContainer,
+											{ backgroundColor: colors.background50 },
+										]}
+									>
 										<FlatList
 											data={empresas}
 											keyExtractor={(item) => item.id}
@@ -236,7 +273,12 @@ export default function RegisterScreen() {
 													style={styles.resultItem}
 													onPress={() => handleSelectEmpresa(item)}
 												>
-													<Text style={[styles.resultText, { color: colors.textPrimary }]}>
+													<Text
+														style={[
+															styles.resultText,
+															{ color: colors.textPrimary },
+														]}
+													>
 														{item.nomeEmpresa}
 													</Text>
 												</TouchableOpacity>
@@ -352,17 +394,29 @@ export default function RegisterScreen() {
 								},
 							]}
 							value={cpfCnpj}
-							onChangeText={setCpfCnpj}
+							onChangeText={(text) => {
+								if (tipo === "empresa") {
+									const onlyNumbers = text.replace(/\D/g, "").slice(0, 14);
+									setCpfCnpj(formatCNPJ(onlyNumbers));
+								} else {
+									const onlyNumbers = text.replace(/\D/g, "").slice(0, 11);
+									setCpfCnpj(formatCPF(onlyNumbers));
+								}
+							}}
 							placeholder={`Digite seu ${tipo === "empresa" ? "CNPJ" : "CPF"}`}
 							placeholderTextColor={colors.textSecondary}
 							keyboardType="numeric"
+							maxLength={tipo === "empresa" ? 18 : 14}
 						/>
 					</View>
 
 					<View style={styles.radioGroup}>
 						<Pressable
 							style={styles.radioOption}
-							onPress={() => setTipo("empresa")}
+							onPress={() => {
+								setTipo("empresa");
+								setCpfCnpj("");
+							}}
 						>
 							<View
 								style={[styles.radioCircle, { borderColor: colors.primary }]}
@@ -382,7 +436,10 @@ export default function RegisterScreen() {
 						</Pressable>
 						<Pressable
 							style={styles.radioOption}
-							onPress={() => setTipo("cliente")}
+							onPress={() => {
+								setTipo("cliente");
+								setCpfCnpj("");
+							}}
 						>
 							<View
 								style={[styles.radioCircle, { borderColor: colors.primary }]}
