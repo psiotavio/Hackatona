@@ -701,7 +701,8 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   feedbackContainer: {
-    marginTop: -10,
+    marginTop: -8,
+    zIndex: -1,
     marginLeft: 20,
     marginRight: 20,
     backgroundColor: '#F2E2CE', // Mesmo cor do card

@@ -1,15 +1,29 @@
 import React from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
 import LottieView from 'lottie-react-native';
 import { useTheme } from '../contexts/ThemeContext';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
 export default function PendenteScreen() {
   const { colors } = useTheme();
+  const router = useRouter();
+
+  const handleBack = () => {
+    router.back();
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>  
+      <TouchableOpacity 
+        style={styles.backButton}
+        onPress={handleBack}
+      >
+        <Ionicons name="arrow-back" size={24} color="#8B4513" />
+      </TouchableOpacity>
+      
       <View style={styles.iconContainer}>
         <LottieView
           source={require('../assets/animations/clockAnimation.json')}
@@ -33,6 +47,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
+  },
+  backButton: {
+    position: 'absolute',
+    top: 40,
+    left: 20,
+    padding: 8,
+    zIndex: 10,
   },
   iconContainer: {
     marginBottom: 32,
