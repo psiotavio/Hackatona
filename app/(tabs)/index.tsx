@@ -43,11 +43,14 @@ interface Post {
   };
   title: string;
   description: string;
+  image?: string;
+  link?: string;
   likes: number;
   isLiked: boolean;
   isFavorite: boolean;
   comments: number;
   topFeedback: Feedback;
+  allFeedbacks: Feedback[];
 }
 
 // Dados fictícios para os cards de time
@@ -60,6 +63,8 @@ const TIME_DATA: Post[] = [
     },
     title: 'Teste Lorem Ipsum',
     description: 'Fiz uma tela de dashboard',
+    image: 'https://picsum.photos/800/600?random=1',
+    link: 'https://exemplo.com/dashboard',
     likes: 5,
     isLiked: false,
     isFavorite: false,
@@ -74,6 +79,28 @@ const TIME_DATA: Post[] = [
       likes: 8,
       isLiked: false,
     },
+    allFeedbacks: [
+      {
+        id: '101',
+        author: {
+          name: 'Super Interessante!',
+          avatar: getAvatarUri('Super Interessante'),
+        },
+        content: 'Super Interessante!',
+        likes: 8,
+        isLiked: false,
+      },
+      {
+        id: '102',
+        author: {
+          name: 'João Silva',
+          avatar: getAvatarUri('João Silva'),
+        },
+        content: 'Ficou incrível! Adorei as cores e a disposição dos elementos.',
+        likes: 5,
+        isLiked: false,
+      }
+    ]
   },
   {
     id: '2',
@@ -83,6 +110,8 @@ const TIME_DATA: Post[] = [
     },
     title: 'Teste Lorem Ipsum',
     description: 'Fiz uma tela de dashboard',
+    image: 'https://picsum.photos/800/600?random=2',
+    link: 'https://exemplo.com/dashboard2',
     likes: 7,
     isLiked: false,
     isFavorite: false,
@@ -97,6 +126,28 @@ const TIME_DATA: Post[] = [
       likes: 12,
       isLiked: false,
     },
+    allFeedbacks: [
+      {
+        id: '102',
+        author: {
+          name: 'Super Interessante!',
+          avatar: getAvatarUri('Super Interessante'),
+        },
+        content: 'Super Interessante!',
+        likes: 12,
+        isLiked: false,
+      },
+      {
+        id: '103',
+        author: {
+          name: 'Maria Oliveira',
+          avatar: getAvatarUri('Maria Oliveira'),
+        },
+        content: 'Muito bem feito! Parabéns pelo trabalho.',
+        likes: 7,
+        isLiked: false,
+      }
+    ]
   },
   {
     id: '3',
@@ -106,6 +157,8 @@ const TIME_DATA: Post[] = [
     },
     title: 'Teste Lorem Ipsum',
     description: 'Fiz uma tela de dashboard',
+    image: 'https://picsum.photos/800/600?random=3',
+    link: 'https://exemplo.com/dashboard3',
     likes: 9,
     isLiked: false,
     isFavorite: false,
@@ -120,6 +173,28 @@ const TIME_DATA: Post[] = [
       likes: 15,
       isLiked: false,
     },
+    allFeedbacks: [
+      {
+        id: '103',
+        author: {
+          name: 'Super Interessante!',
+          avatar: getAvatarUri('Super Interessante'),
+        },
+        content: 'Super Interessante!',
+        likes: 15,
+        isLiked: false,
+      },
+      {
+        id: '104',
+        author: {
+          name: 'Pedro Santos',
+          avatar: getAvatarUri('Pedro Santos'),
+        },
+        content: 'Excelente trabalho! Ficou muito profissional.',
+        likes: 9,
+        isLiked: false,
+      }
+    ]
   },
   {
     id: '4',
@@ -129,6 +204,8 @@ const TIME_DATA: Post[] = [
     },
     title: 'Maria Silva',
     description: 'Implementei uma nova funcionalidade no app',
+    image: 'https://picsum.photos/800/600?random=4',
+    link: 'https://exemplo.com/nova-funcionalidade',
     likes: 12,
     isLiked: false,
     isFavorite: false,
@@ -143,6 +220,28 @@ const TIME_DATA: Post[] = [
       likes: 10,
       isLiked: false,
     },
+    allFeedbacks: [
+      {
+        id: '104',
+        author: {
+          name: 'João Santos',
+          avatar: getAvatarUri('João Santos'),
+        },
+        content: 'Ficou incrível!',
+        likes: 10,
+        isLiked: false,
+      },
+      {
+        id: '105',
+        author: {
+          name: 'Ana Paula',
+          avatar: getAvatarUri('Ana Paula'),
+        },
+        content: 'Essa funcionalidade vai facilitar muito o trabalho!',
+        likes: 8,
+        isLiked: false,
+      }
+    ]
   },
   {
     id: '5',
@@ -152,6 +251,8 @@ const TIME_DATA: Post[] = [
     },
     title: 'Carlos Oliveira',
     description: 'Criei uma animação para o app',
+    image: 'https://picsum.photos/800/600?random=5',
+    link: 'https://exemplo.com/animacao',
     likes: 15,
     isLiked: false,
     isFavorite: false,
@@ -166,6 +267,28 @@ const TIME_DATA: Post[] = [
       likes: 18,
       isLiked: false,
     },
+    allFeedbacks: [
+      {
+        id: '105',
+        author: {
+          name: 'Ana Paula',
+          avatar: getAvatarUri('Ana Paula'),
+        },
+        content: 'Muito fluído, parabéns!',
+        likes: 18,
+        isLiked: false,
+      },
+      {
+        id: '106',
+        author: {
+          name: 'Roberto Gomes',
+          avatar: getAvatarUri('Roberto Gomes'),
+        },
+        content: 'A animação ficou super suave! Como você fez isso?',
+        likes: 12,
+        isLiked: false,
+      }
+    ]
   },
   {
     id: '6',
@@ -175,6 +298,8 @@ const TIME_DATA: Post[] = [
     },
     title: 'Roberto Gomes',
     description: 'Resolvi um bug crítico no sistema',
+    image: 'https://picsum.photos/800/600?random=6',
+    link: 'https://exemplo.com/bugfix',
     likes: 20,
     isLiked: false,
     isFavorite: false,
@@ -189,6 +314,28 @@ const TIME_DATA: Post[] = [
       likes: 22,
       isLiked: false,
     },
+    allFeedbacks: [
+      {
+        id: '106',
+        author: {
+          name: 'Patricia Mendes',
+          avatar: getAvatarUri('Patricia Mendes'),
+        },
+        content: 'Excelente trabalho!',
+        likes: 22,
+        isLiked: false,
+      },
+      {
+        id: '107',
+        author: {
+          name: 'Lucas Ferreira',
+          avatar: getAvatarUri('Lucas Ferreira'),
+        },
+        content: 'Estava atrapalhando muito o nosso fluxo. Obrigado por resolver!',
+        likes: 15,
+        isLiked: false,
+      }
+    ]
   },
 ];
 
@@ -202,6 +349,8 @@ const EMPRESA_DATA: Post[] = [
     },
     title: 'Tech Solutions',
     description: 'Lançamos a nova versão do nosso app empresarial',
+    image: 'https://picsum.photos/800/600?random=7',
+    link: 'https://techsolutions.com/nova-versao',
     likes: 48,
     isLiked: false,
     isFavorite: false,
@@ -216,6 +365,28 @@ const EMPRESA_DATA: Post[] = [
       likes: 32,
       isLiked: false,
     },
+    allFeedbacks: [
+      {
+        id: '201',
+        author: {
+          name: 'Sandra Marketing',
+          avatar: getAvatarUri('Sandra Marketing'),
+        },
+        content: 'Essa atualização vai revolucionar o mercado!',
+        likes: 32,
+        isLiked: false,
+      },
+      {
+        id: '202',
+        author: {
+          name: 'Marcos Diretor',
+          avatar: getAvatarUri('Marcos Diretor'),
+        },
+        content: 'Estamos recebendo feedbacks muito positivos dos clientes!',
+        likes: 24,
+        isLiked: false,
+      }
+    ]
   },
   {
     id: '102',
@@ -225,6 +396,8 @@ const EMPRESA_DATA: Post[] = [
     },
     title: 'Cloud Systems',
     description: 'Nova estratégia de marketing digital implementada',
+    image: 'https://picsum.photos/800/600?random=8',
+    link: 'https://cloudsystems.com/marketing',
     likes: 67,
     isLiked: false,
     isFavorite: false,
@@ -239,6 +412,28 @@ const EMPRESA_DATA: Post[] = [
       likes: 45,
       isLiked: false,
     },
+    allFeedbacks: [
+      {
+        id: '202',
+        author: {
+          name: 'Marcos Diretor',
+          avatar: getAvatarUri('Marcos Diretor'),
+        },
+        content: 'Estamos observando um aumento significativo nas conversões!',
+        likes: 45,
+        isLiked: false,
+      },
+      {
+        id: '203',
+        author: {
+          name: 'Carla Finanças',
+          avatar: getAvatarUri('Carla Finanças'),
+        },
+        content: 'Os resultados financeiros já estão aparecendo. Excelente trabalho da equipe!',
+        likes: 38,
+        isLiked: false,
+      }
+    ]
   },
   {
     id: '103',
@@ -248,6 +443,8 @@ const EMPRESA_DATA: Post[] = [
     },
     title: 'Innovate Inc',
     description: 'Resultados do primeiro trimestre superaram expectativas',
+    image: 'https://picsum.photos/800/600?random=9',
+    link: 'https://innovateinc.com/resultados-q1',
     likes: 89,
     isLiked: false,
     isFavorite: false,
@@ -262,6 +459,28 @@ const EMPRESA_DATA: Post[] = [
       likes: 56,
       isLiked: false,
     },
+    allFeedbacks: [
+      {
+        id: '203',
+        author: {
+          name: 'Carla Finanças',
+          avatar: getAvatarUri('Carla Finanças'),
+        },
+        content: 'Os investidores estão muito satisfeitos com esses números!',
+        likes: 56,
+        isLiked: false,
+      },
+      {
+        id: '204',
+        author: {
+          name: 'Ricardo Expansão',
+          avatar: getAvatarUri('Ricardo Expansão'),
+        },
+        content: 'Isso nos dá confiança para expandir para novos mercados!',
+        likes: 41,
+        isLiked: false,
+      }
+    ]
   },
   {
     id: '104',
@@ -271,6 +490,8 @@ const EMPRESA_DATA: Post[] = [
     },
     title: 'Global Tech',
     description: 'Expandimos operações para três novos países',
+    image: 'https://picsum.photos/800/600?random=10',
+    link: 'https://globaltech.com/expansao',
     likes: 112,
     isLiked: false,
     isFavorite: false,
@@ -285,6 +506,28 @@ const EMPRESA_DATA: Post[] = [
       likes: 78,
       isLiked: false,
     },
+    allFeedbacks: [
+      {
+        id: '204',
+        author: {
+          name: 'Ricardo Expansão',
+          avatar: getAvatarUri('Ricardo Expansão'),
+        },
+        content: 'Uma jogada estratégica impressionante para o mercado internacional',
+        likes: 78,
+        isLiked: false,
+      },
+      {
+        id: '205',
+        author: {
+          name: 'Amanda Inovação',
+          avatar: getAvatarUri('Amanda Inovação'),
+        },
+        content: 'Estou ansiosa para ver como nossos produtos serão recebidos nesses novos mercados!',
+        likes: 65,
+        isLiked: false,
+      }
+    ]
   },
   {
     id: '105',
@@ -294,6 +537,8 @@ const EMPRESA_DATA: Post[] = [
     },
     title: 'Future Labs',
     description: 'Nova patente registrada para tecnologia de IA',
+    image: 'https://picsum.photos/800/600?random=11',
+    link: 'https://futurelabs.com/ia-patent',
     likes: 135,
     isLiked: false,
     isFavorite: false,
@@ -308,6 +553,28 @@ const EMPRESA_DATA: Post[] = [
       likes: 91,
       isLiked: false,
     },
+    allFeedbacks: [
+      {
+        id: '205',
+        author: {
+          name: 'Amanda Inovação',
+          avatar: getAvatarUri('Amanda Inovação'),
+        },
+        content: 'Esta tecnologia vai mudar completamente o setor!',
+        likes: 91,
+        isLiked: false,
+      },
+      {
+        id: '206',
+        author: {
+          name: 'Gustavo Tecnologia',
+          avatar: getAvatarUri('Gustavo Tecnologia'),
+        },
+        content: 'Anos de pesquisa finalmente dando frutos. Parabéns a toda equipe!',
+        likes: 82,
+        isLiked: false,
+      }
+    ]
   },
 ];
 
@@ -492,57 +759,77 @@ export default function HomeScreen() {
           }
         ]}
       >
-        <View style={[styles.card, { backgroundColor: colors.background50 }]}>
-          <View style={styles.cardHeader}>
-            <View style={styles.authorContainer}>
-              <Image source={tarefa.author.avatar} style={styles.avatar} />
-              <Text style={[styles.authorName, { color: colors.titlePrimary }]}>{tarefa.title}</Text>
+        <TouchableOpacity 
+          activeOpacity={0.9} 
+          onPress={() => router.push({
+            pathname: '/card-details',
+            params: { cardId: tarefa.id, cardType: activeTab }
+          })}
+        >
+          <View style={[styles.card, { backgroundColor: colors.background50 }]}>
+            <View style={styles.cardHeader}>
+              <View style={styles.authorContainer}>
+                <Image source={tarefa.author.avatar} style={styles.avatar} />
+                <Text style={[styles.authorName, { color: colors.titlePrimary }]}>{tarefa.title}</Text>
+              </View>
+              <TouchableOpacity 
+                style={styles.bookmarkButton}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleFavorite(tarefa.id);
+                }}
+              >
+                <Ionicons 
+                  name={tarefa.isFavorite ? "bookmark" : "bookmark-outline"} 
+                  size={24} 
+                  color={colors.primary} 
+                />
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity 
-              style={styles.bookmarkButton}
-              onPress={() => handleFavorite(tarefa.id)}
-            >
-              <Ionicons 
-                name={tarefa.isFavorite ? "bookmark" : "bookmark-outline"} 
-                size={24} 
-                color={colors.primary} 
-              />
-            </TouchableOpacity>
+            
+            <Text style={[styles.cardDescription, { color: colors.textSecondary }]}>{tarefa.description}</Text>
+            
+            <View style={styles.cardActions}>
+              <TouchableOpacity 
+                style={styles.actionButton}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleLike(tarefa.id);
+                }}
+              >
+                <Ionicons 
+                  name={tarefa.isLiked ? "heart" : "heart-outline"} 
+                  size={24} 
+                  color={colors.primary} 
+                />
+                {tarefa.likes > 0 && (
+                  <Text style={[styles.likeCount, { color: colors.primary }]}>{tarefa.likes}</Text>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.actionButton}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleComments(tarefa.id);
+                }}
+              >
+                <Ionicons name="chatbubble-outline" size={22} color={colors.primary} />
+                {tarefa.comments > 0 && (
+                  <Text style={[styles.commentCount, { color: colors.primary }]}>{tarefa.comments}</Text>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.actionButton}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleShare(tarefa);
+                }}
+              >
+                <Ionicons name="paper-plane-outline" size={22} color={colors.primary} />
+              </TouchableOpacity>
+            </View>
           </View>
-          
-          <Text style={[styles.cardDescription, { color: colors.textSecondary }]}>{tarefa.description}</Text>
-          
-          <View style={styles.cardActions}>
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={() => handleLike(tarefa.id)}
-            >
-              <Ionicons 
-                name={tarefa.isLiked ? "heart" : "heart-outline"} 
-                size={24} 
-                color={colors.primary} 
-              />
-              {tarefa.likes > 0 && (
-                <Text style={[styles.likeCount, { color: colors.primary }]}>{tarefa.likes}</Text>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={() => handleComments(tarefa.id)}
-            >
-              <Ionicons name="chatbubble-outline" size={22} color={colors.primary} />
-              {tarefa.comments > 0 && (
-                <Text style={[styles.commentCount, { color: colors.primary }]}>{tarefa.comments}</Text>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={() => handleShare(tarefa)}
-            >
-              <Ionicons name="paper-plane-outline" size={22} color={colors.primary} />
-            </TouchableOpacity>
-          </View>
-        </View>
+        </TouchableOpacity>
         
         <View style={[styles.feedbackContainer, { backgroundColor: colors.background50 }]}>
           <View style={styles.feedbackContent}>
@@ -583,6 +870,49 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
       
+      {/* Abas de seleção */}
+      <View style={[styles.tabBar, { borderBottomColor: colors.border }]}>
+        <TouchableOpacity 
+          style={[
+            styles.tab, 
+            activeTab === 'time' && { 
+              borderBottomWidth: 2,
+              borderBottomColor: colors.primary
+            }
+          ]}
+          onPress={() => setActiveTab('time')}
+        >
+          <Text 
+            style={[
+              styles.tabText, 
+              { color: activeTab === 'time' ? colors.primary : colors.textSecondary }
+            ]}
+          >
+            Time
+          </Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[
+            styles.tab, 
+            activeTab === 'empresa' && { 
+              borderBottomWidth: 2,
+              borderBottomColor: colors.primary
+            }
+          ]}
+          onPress={() => setActiveTab('empresa')}
+        >
+          <Text 
+            style={[
+              styles.tabText, 
+              { color: activeTab === 'empresa' ? colors.primary : colors.textSecondary }
+            ]}
+          >
+            Empresa
+          </Text>
+        </TouchableOpacity>
+      </View>
+      
       {/* Conteúdo principal */}
       <Animated.ScrollView 
         style={styles.scrollView}
@@ -615,6 +945,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 8,
@@ -627,6 +958,20 @@ const styles = StyleSheet.create({
   chatButton: {
     padding: 8,
     borderRadius: 20,
+  },
+  tabBar: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    paddingHorizontal: 16,
+  },
+  tab: {
+    paddingVertical: 12,
+    marginRight: 20,
+    paddingHorizontal: 8,
+  },
+  tabText: {
+    fontSize: 16,
+    fontWeight: '500',
   },
   scrollView: {
     flex: 1,
