@@ -53,7 +53,9 @@ export default function RegisterScreen() {
 	const [showRepetirSenha, setShowRepetirSenha] = useState(false);
 	const [empresas, setEmpresas] = useState<EmpresaData[]>([]);
 	const [showDropdown, setShowDropdown] = useState(false);
-	const [selectedEmpresa, setSelectedEmpresa] = useState<EmpresaData | null>(null);
+	const [selectedEmpresa, setSelectedEmpresa] = useState<EmpresaData | null>(
+		null
+	);
 	const [loadingEmpresas, setLoadingEmpresas] = useState(false);
 
 	const formatCNPJ = (value: string) => {
@@ -78,7 +80,7 @@ export default function RegisterScreen() {
 
 	// Carregar todas as empresas quando o tipo for alterado para 'cliente'
 	useEffect(() => {
-		if (tipo === 'cliente') {
+		if (tipo === "cliente") {
 			fetchAllEmpresas();
 		}
 	}, [tipo]);
@@ -87,18 +89,17 @@ export default function RegisterScreen() {
 	const fetchAllEmpresas = async () => {
 		setLoadingEmpresas(true);
 		try {
-			const q = query(
-				collection(db, "users"),
-				where("tipo", "==", "empresa")
-			);
+			const q = query(collection(db, "users"), where("tipo", "==", "empresa"));
 
 			const querySnapshot = await getDocs(q);
-			const empresasList = querySnapshot.docs.map((doc) => ({
-				id: doc.id,
-				nomeEmpresa: doc.data().nomeEmpresa || 'Empresa sem nome',
-				...doc.data(),
-			})).sort((a, b) => a.nomeEmpresa.localeCompare(b.nomeEmpresa));
-			
+			const empresasList = querySnapshot.docs
+				.map((doc) => ({
+					id: doc.id,
+					nomeEmpresa: doc.data().nomeEmpresa || "Empresa sem nome",
+					...doc.data(),
+				}))
+				.sort((a, b) => a.nomeEmpresa.localeCompare(b.nomeEmpresa));
+
 			setEmpresas(empresasList);
 		} catch (error) {
 			console.error("Erro ao buscar empresas:", error);
@@ -149,7 +150,7 @@ export default function RegisterScreen() {
 				cpfCnpj,
 				tipo,
 				nomeEmpresa:
-					tipo === "empresa" ? nomeEmpresa : selectedEmpresa?.nomeEmpresa || '',
+					tipo === "empresa" ? nomeEmpresa : selectedEmpresa?.nomeEmpresa || "",
 				empresaId: tipo === "cliente" ? selectedEmpresa?.id : null,
 				status: tipo === "cliente" ? "pending" : "approved",
 				dataCriacao: new Date().toISOString(),
@@ -250,60 +251,66 @@ export default function RegisterScreen() {
 								<Text style={[styles.label, { color: colors.textPrimary }]}>
 									Selecione sua empresa
 								</Text>
-								<TouchableOpacity 
+								<TouchableOpacity
 									style={[
-										styles.dropdownButton, 
-										{ 
+										styles.input,
+										styles.dropdownButton,
+										{
 											backgroundColor: colors.background50,
 											borderColor: colors.border,
-											borderBottomWidth: showDropdown ? 0 : 1.5
-										}
+											borderBottomLeftRadius: showDropdown ? 0 : 24,
+											borderBottomRightRadius: showDropdown ? 0 : 24,
+										},
 									]}
 									onPress={() => setShowDropdown(!showDropdown)}
 								>
-									<Text 
+									<Text
 										style={[
-											styles.dropdownButtonText, 
-											{ 
-												color: selectedEmpresa ? colors.textPrimary : colors.textSecondary 
-											}
+											styles.dropdownButtonText,
+											{
+												color: selectedEmpresa
+													? colors.textPrimary
+													: colors.textSecondary,
+											},
 										]}
 										numberOfLines={1}
 									>
-										{selectedEmpresa ? selectedEmpresa.nomeEmpresa : "Selecione a empresa"}
+										{selectedEmpresa
+											? selectedEmpresa.nomeEmpresa
+											: "Selecione a empresa"}
 									</Text>
-									<Ionicons 
-										name={showDropdown ? "chevron-up" : "chevron-down"} 
-										size={20} 
-										color={colors.textSecondary} 
+									<Ionicons
+										name={showDropdown ? "chevron-up" : "chevron-down"}
+										size={20}
+										color={colors.textSecondary}
 									/>
 								</TouchableOpacity>
 							</View>
-							
 							{showDropdown && (
-								<View 
+								<View
 									style={{
 										width: "100%",
 										marginBottom: 16,
-										marginTop: -1.5,
-										borderWidth: 1,
+										marginTop: -16,
+										borderWidth: 1.5,
 										borderTopWidth: 0,
 										borderColor: colors.border,
-										borderBottomLeftRadius: 12,
-										borderBottomRightRadius: 12,
+										borderBottomLeftRadius: 24,
+										borderBottomRightRadius: 24,
 										backgroundColor: colors.background50,
-										overflow: "hidden",
-										shadowColor: "#000",
-										shadowOffset: { width: 2, height: 2 },
-										shadowOpacity: 0.25,
-										shadowRadius: 3.84,
-										elevation: 5,
+										shadowColor: "transparent",
+										elevation: 0,
 									}}
 								>
 									{loadingEmpresas ? (
 										<View style={styles.loadingContainer}>
 											<ActivityIndicator size="small" color={colors.primary} />
-											<Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+											<Text
+												style={[
+													styles.loadingText,
+													{ color: colors.textSecondary },
+												]}
+											>
 												Carregando empresas...
 											</Text>
 										</View>
@@ -315,20 +322,31 @@ export default function RegisterScreen() {
 												<TouchableOpacity
 													style={[
 														styles.dropdownItem,
-														selectedEmpresa?.id === item.id && {
-															backgroundColor: colors.primary + '20'
-														}
+														{
+															backgroundColor:
+																selectedEmpresa?.id === item.id
+																	? colors.primary + "20"
+																	: "transparent",
+															borderRadius: 0,
+															paddingVertical: 15,
+															paddingHorizontal: 20,
+														},
 													]}
 													onPress={() => handleSelectEmpresa(item)}
 												>
 													<Text
 														style={[
 															styles.dropdownItemText,
-															{ color: colors.textPrimary },
-															selectedEmpresa?.id === item.id && {
-																fontWeight: 'bold',
-																color: colors.primary
-															}
+															{
+																color:
+																	selectedEmpresa?.id === item.id
+																		? colors.primary
+																		: colors.textPrimary,
+																fontWeight:
+																	selectedEmpresa?.id === item.id
+																		? "bold"
+																		: "normal",
+															},
 														]}
 													>
 														{item.nomeEmpresa}
@@ -339,11 +357,16 @@ export default function RegisterScreen() {
 											nestedScrollEnabled={true}
 											style={[
 												styles.flatList,
-												{ height: Math.min(empresas.length * 50, 150) }
+												{ height: Math.min(empresas.length * 50, 150) },
 											]}
 										/>
 									) : (
-										<Text style={[styles.noResultsText, { color: colors.textSecondary }]}>
+										<Text
+											style={[
+												styles.noResultsText,
+												{ color: colors.textSecondary },
+											]}
+										>
 											Nenhuma empresa encontrada
 										</Text>
 									)}
@@ -573,7 +596,7 @@ const styles = StyleSheet.create({
 	inputGroup: {
 		width: "100%",
 		marginBottom: 16,
-		position: 'relative',
+		position: "relative",
 	},
 	label: {
 		fontSize: 16,
@@ -653,24 +676,18 @@ const styles = StyleSheet.create({
 		fontWeight: "bold",
 	},
 	dropdownButton: {
-		width: "100%",
-		height: 48,
-		borderWidth: 1.5,
-		borderRadius: 24,
-		borderBottomLeftRadius: 0,
-		borderBottomRightRadius: 0,
-		paddingHorizontal: 20,
+		borderBottomLeftRadius: 24,
+		borderBottomRightRadius: 24,
 		flexDirection: "row",
 		alignItems: "center",
 		justifyContent: "space-between",
+		paddingHorizontal: 20,
 	},
 	dropdownButtonText: {
 		fontSize: 16,
 		flex: 1,
 	},
 	dropdownItem: {
-		paddingVertical: 15,
-		paddingHorizontal: 20,
 		borderBottomWidth: 0.5,
 		borderBottomColor: "rgba(0,0,0,0.1)",
 		width: "100%",
