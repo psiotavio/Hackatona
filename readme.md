@@ -36,10 +36,6 @@ A partir disso, nasceu a ideia do **Feedin**: um app mobile moderno e gamificado
 - Ao escrever um feedback, o usuário pode contar com o auxílio de uma **Inteligência Artificial**, que ajuda a tornar o texto mais leve, amigável e eficaz.
 - Utilizada para fazer esse auxilio de forma totalmente descontraída.  
 
-## 🖼️ Visão do aplicativo
-
-Como pegamos o time marrom 
-
 ## ⚙️ Tecnologias Utilizadas
 
 O Feedin é desenvolvido com uma stack moderna, que visa simplicidade, escalabilidade e boa experiência para o usuário final.
