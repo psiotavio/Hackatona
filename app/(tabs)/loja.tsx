@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -11,10 +11,25 @@ import {
   SafeAreaView,
   TouchableOpacity,
   Modal,
-  Alert
+  Alert,
+  ActivityIndicator
 } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { db, auth } from '@/services/firebase/firebase.config';
+import { 
+  collection, 
+  query, 
+  where, 
+  getDocs, 
+  doc, 
+  getDoc, 
+  updateDoc, 
+  setDoc, 
+  addDoc,
+  orderBy,
+  serverTimestamp
+} from 'firebase/firestore';
 
 const { width } = Dimensions.get('window');
 
@@ -28,6 +43,9 @@ interface Produto {
   imagem: string;
   categoria: string;
   condicao: string;
+  estoque?: number;
+  empresaId?: string;
+  nomeEmpresa?: string;
 }
 
 // Interface para tipagem do histórico
@@ -39,88 +57,58 @@ interface HistoricoItem {
   tipo: 'ganho' | 'gasto';
 }
 
-// Dados de exemplo para os produtos
-const PRODUTOS: Produto[] = [
+// Produtos de exemplo para sincronização
+const PRODUTOS_EXEMPLO: Omit<Produto, 'id' | 'empresaId' | 'nomeEmpresa'>[] = [
   {
-    id: '1',
-    nome: 'Fone de Ouvido Bluetooth',
-    pontos: 5000,
-    desconto: 15,
-    pontosOriginal: 5880,
+    nome: 'Fone Logitech',
+    pontos: 500,
+    desconto: 0,
+    pontosOriginal: 500,
     imagem: 'https://picsum.photos/200/300',
     categoria: 'Eletrônicos',
-    condicao: 'Novo'
+    condicao: 'Novo',
+    estoque: 10
   },
   {
-    id: '2',
-    nome: 'Garrafa Térmica 500ml',
-    pontos: 2800,
-    desconto: 10,
-    pontosOriginal: 3100,
+    nome: 'Teclado Logitech',
+    pontos: 400,
+    desconto: 0,
+    pontosOriginal: 400,
     imagem: 'https://picsum.photos/200/301',
-    categoria: 'Utilidades',
-    condicao: 'Novo'
+    categoria: 'Eletrônicos',
+    condicao: 'Novo',
+    estoque: 10
   },
   {
-    id: '3',
-    nome: 'Mochila Premium',
-    pontos: 7500,
-    desconto: 20,
-    pontosOriginal: 9375,
+    nome: 'Mousepad',
+    pontos: 100,
+    desconto: 0,
+    pontosOriginal: 100,
     imagem: 'https://picsum.photos/200/302',
     categoria: 'Acessórios',
-    condicao: 'Novo'
+    condicao: 'Novo',
+    estoque: 20
   },
   {
-    id: '4',
-    nome: 'Caneca Personalizada',
-    pontos: 1200,
-    desconto: 5,
-    pontosOriginal: 1260,
+    nome: 'Lápis',
+    pontos: 10,
+    desconto: 0,
+    pontosOriginal: 10,
     imagem: 'https://picsum.photos/200/303',
-    categoria: 'Utilidades',
-    condicao: 'Novo'
+    categoria: 'Papelaria',
+    condicao: 'Novo',
+    estoque: 50
   },
   {
-    id: '5',
-    nome: 'Powerbank 10000mAh',
-    pontos: 4500,
-    desconto: 25,
-    pontosOriginal: 6000,
+    nome: 'Cabo USB',
+    pontos: 50,
+    desconto: 0,
+    pontosOriginal: 50,
     imagem: 'https://picsum.photos/200/304',
     categoria: 'Eletrônicos',
-    condicao: 'Novo'
+    condicao: 'Novo',
+    estoque: 30
   },
-  {
-    id: '6',
-    nome: 'Caderno Eco Friendly',
-    pontos: 1800,
-    desconto: 12,
-    pontosOriginal: 2040,
-    imagem: 'https://picsum.photos/200/305',
-    categoria: 'Papelaria',
-    condicao: 'Novo'
-  },
-  {
-    id: '7',
-    nome: 'Kit Home Office',
-    pontos: 6200,
-    desconto: 18,
-    pontosOriginal: 7560,
-    imagem: 'https://picsum.photos/200/306',
-    categoria: 'Escritório',
-    condicao: 'Novo'
-  },
-  {
-    id: '8',
-    nome: 'Squeeze Dobrável',
-    pontos: 950,
-    desconto: 8,
-    pontosOriginal: 1030,
-    imagem: 'https://picsum.photos/200/307',
-    categoria: 'Utilidades',
-    condicao: 'Novo'
-  }
 ];
 
 // Dados de exemplo para o histórico
@@ -181,48 +169,247 @@ const OPCOES_ORDENACAO = [
 const LojaScreen = () => {
   const { colors, currentTheme } = useTheme();
   const [visualizacao, setVisualizacao] = useState('grade'); // 'grade' ou 'lista'
-  const [produtosEncontrados, setProdutosEncontrados] = useState(PRODUTOS.length);
-  const [pontos, setPontos] = useState(12500); // Pontos de exemplo do usuário
+  const [produtosEncontrados, setProdutosEncontrados] = useState(0);
+  const [pontos, setPontos] = useState(0); // Pontos do usuário
   const [modalHistoricoVisible, setModalHistoricoVisible] = useState(false);
   const [modalOrdenacaoVisible, setModalOrdenacaoVisible] = useState(false);
   const [modalConfirmacaoVisible, setModalConfirmacaoVisible] = useState(false);
   const [modalDetalhesVisible, setModalDetalhesVisible] = useState(false);
+  const [modalSincronizacaoVisible, setModalSincronizacaoVisible] = useState(false);
   const [produtoSelecionado, setProdutoSelecionado] = useState<Produto | null>(null);
   const [ordenacaoSelecionada, setOrdenacaoSelecionada] = useState(OPCOES_ORDENACAO[0]);
-  const [produtosOrdenados, setProdutosOrdenados] = useState<Produto[]>([...PRODUTOS]);
+  const [produtosOrdenados, setProdutosOrdenados] = useState<Produto[]>([]);
   const [historico, setHistorico] = useState<HistoricoItem[]>([...HISTORICO]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSincronizando, setIsSincronizando] = useState(false);
+  const [userData, setUserData] = useState<any>(null);
+
+  // Buscar usuário atual e seus pontos
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        setIsLoading(true);
+        const user = auth.currentUser;
+        if (!user) {
+          setIsLoading(false);
+          return;
+        }
+
+        // Buscar dados do usuário
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          setUserData(userData);
+          // Verificar se o usuário tem pontos, se não, inicializar com 0
+          const userPontos = userData.pontos !== undefined ? userData.pontos : 0;
+          setPontos(userPontos);
+          
+          // Se não tiver pontos, atualizar no Firebase
+          if (userData.pontos === undefined) {
+            await updateDoc(doc(db, "users", user.uid), {
+              pontos: 0
+            });
+          }
+        }
+        
+        // Buscar produtos da loja
+        await fetchProdutos();
+        
+        setIsLoading(false);
+      } catch (error) {
+        console.error("Erro ao buscar dados do usuário:", error);
+        setIsLoading(false);
+        Alert.alert("Erro", "Não foi possível carregar seus dados.");
+      }
+    };
+
+    fetchUserData();
+  }, []);
+
+  // Buscar produtos da loja
+  const fetchProdutos = async () => {
+    try {
+      const user = auth.currentUser;
+      if (!user) return;
+
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      if (!userDoc.exists()) return;
+
+      const userData = userDoc.data();
+      const empresaId = userData.tipo === 'empresa' ? user.uid : userData.empresaId;
+
+      if (!empresaId) {
+        Alert.alert("Erro", "Não foi possível identificar sua empresa.");
+        return;
+      }
+
+      // Buscar produtos da loja
+      const produtosQuery = query(
+        collection(db, "loja"),
+        where("empresaId", "==", empresaId),
+        orderBy("nome")
+      );
+
+      const querySnapshot = await getDocs(produtosQuery);
+      const produtosList = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Produto[];
+
+      setProdutosOrdenados(produtosList);
+      setProdutosEncontrados(produtosList.length);
+    } catch (error) {
+      console.error("Erro ao buscar produtos:", error);
+      Alert.alert("Erro", "Não foi possível carregar os produtos da loja.");
+    }
+  };
+
+  // Função para sincronizar produtos com o Firebase
+  const sincronizarProdutos = async () => {
+    try {
+      setIsSincronizando(true);
+      const user = auth.currentUser;
+      if (!user) {
+        setIsSincronizando(false);
+        Alert.alert("Erro", "Usuário não autenticado.");
+        return;
+      }
+
+      // Verificar se o usuário tem acesso à empresa
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      if (!userDoc.exists()) {
+        setIsSincronizando(false);
+        Alert.alert("Erro", "Dados do usuário não encontrados.");
+        return;
+      }
+
+      const userData = userDoc.data();
+      const empresaId = userData.tipo === 'empresa' ? user.uid : userData.empresaId;
+      const nomeEmpresa = userData.nomeEmpresa;
+
+      if (!empresaId || !nomeEmpresa) {
+        setIsSincronizando(false);
+        Alert.alert("Erro", "Informações da empresa não encontradas.");
+        return;
+      }
+
+      // Verificar se a coleção já existe
+      const lojaRef = collection(db, "loja");
+      const q = query(lojaRef, where("empresaId", "==", empresaId));
+      const querySnapshot = await getDocs(q);
+      
+      if (querySnapshot.empty) {
+        // Adicionar produtos de exemplo
+        for (const produto of PRODUTOS_EXEMPLO) {
+          await addDoc(lojaRef, {
+            ...produto,
+            empresaId,
+            nomeEmpresa,
+            createdAt: serverTimestamp()
+          });
+        }
+        
+        Alert.alert(
+          "Sucesso", 
+          "Produtos sincronizados com sucesso! Foram adicionados produtos de exemplo."
+        );
+      } else {
+        Alert.alert(
+          "Sincronização", 
+          "Já existem produtos cadastrados para esta empresa. Deseja substituí-los?",
+          [
+            {
+              text: "Não",
+              style: "cancel"
+            },
+            {
+              text: "Sim",
+              onPress: async () => {
+                // Deletar produtos existentes
+                for (const doc of querySnapshot.docs) {
+                  await setDoc(doc.ref, {
+                    ...PRODUTOS_EXEMPLO.find((p, index) => index === querySnapshot.docs.indexOf(doc)) || PRODUTOS_EXEMPLO[0],
+                    id: doc.id,
+                    empresaId,
+                    nomeEmpresa,
+                    updatedAt: serverTimestamp()
+                  });
+                }
+                
+                // Se tiver menos produtos que o exemplo, adicionar o restante
+                if (querySnapshot.docs.length < PRODUTOS_EXEMPLO.length) {
+                  for (let i = querySnapshot.docs.length; i < PRODUTOS_EXEMPLO.length; i++) {
+                    await addDoc(lojaRef, {
+                      ...PRODUTOS_EXEMPLO[i],
+                      empresaId,
+                      nomeEmpresa,
+                      createdAt: serverTimestamp()
+                    });
+                  }
+                }
+                
+                Alert.alert("Sucesso", "Produtos atualizados com sucesso!");
+                fetchProdutos();
+              }
+            }
+          ]
+        );
+      }
+      
+      await fetchProdutos();
+      setIsSincronizando(false);
+    } catch (error) {
+      console.error("Erro ao sincronizar produtos:", error);
+      setIsSincronizando(false);
+      Alert.alert("Erro", "Não foi possível sincronizar os produtos.");
+    }
+  };
+
+  // Atualizar pontos do usuário no Firebase
+  const atualizarPontosUsuario = async (novosPontos: number) => {
+    try {
+      const user = auth.currentUser;
+      if (!user) return;
+
+      await updateDoc(doc(db, "users", user.uid), {
+        pontos: novosPontos
+      });
+    } catch (error) {
+      console.error("Erro ao atualizar pontos do usuário:", error);
+    }
+  };
 
   // Função para ordenar produtos
   const ordenarProdutos = (opcao: typeof OPCOES_ORDENACAO[0]) => {
-    let produtosOrdenados = [...PRODUTOS];
+    let produtos = [...produtosOrdenados];
     
     switch (opcao.id) {
       case 'menor_preco':
-        produtosOrdenados.sort((a, b) => a.pontos - b.pontos);
+        produtos.sort((a, b) => a.pontos - b.pontos);
         break;
       case 'maior_preco':
-        produtosOrdenados.sort((a, b) => b.pontos - a.pontos);
+        produtos.sort((a, b) => b.pontos - a.pontos);
         break;
       case 'maior_desconto':
-        produtosOrdenados.sort((a, b) => b.desconto - a.desconto);
+        produtos.sort((a, b) => b.desconto - a.desconto);
         break;
       case 'mais_recentes':
         // Aqui seria baseado em uma data, mas como não temos, vamos inverter a ordem atual
-        produtosOrdenados.reverse();
+        produtos.reverse();
         break;
       default:
         // Relevantes (padrão) - mantém a ordem original
         break;
     }
     
-    setProdutosOrdenados(produtosOrdenados);
+    setProdutosOrdenados(produtos);
     setOrdenacaoSelecionada(opcao);
     setModalOrdenacaoVisible(false);
   };
 
   // Função para verificar se o usuário pode resgatar o produto
   const verificarPontosParaResgate = (produto: Produto) => {
-    if (pontos >= produto.pontos) {
+    if (pontos >= produto.pontos && (produto.estoque === undefined || produto.estoque > 0)) {
       return true;
     }
     return false;
@@ -234,6 +421,12 @@ const LojaScreen = () => {
     
     if (verificarPontosParaResgate(produto)) {
       setModalConfirmacaoVisible(true);
+    } else if (produto.estoque !== undefined && produto.estoque <= 0) {
+      Alert.alert(
+        "Produto indisponível",
+        "Este produto está sem estoque no momento.",
+        [{ text: "OK", style: "cancel" }]
+      );
     } else {
       Alert.alert(
         "Pontos insuficientes",
@@ -244,34 +437,52 @@ const LojaScreen = () => {
   };
 
   // Função para finalizar o resgate
-  const finalizarResgate = () => {
+  const finalizarResgate = async () => {
     if (!produtoSelecionado) return;
     
-    // Desconta os pontos do saldo do usuário
-    const novoSaldo = pontos - produtoSelecionado.pontos;
-    setPontos(novoSaldo);
-    
-    // Adiciona ao histórico
-    const novoHistorico: HistoricoItem = {
-      id: (historico.length + 1).toString(),
-      data: new Date().toLocaleDateString('pt-BR'),
-      descricao: `Resgate: ${produtoSelecionado.nome}`,
-      pontos: produtoSelecionado.pontos,
-      tipo: 'gasto'
-    };
-    
-    setHistorico([novoHistorico, ...historico]);
-    
-    // Fecha o modal de confirmação
-    setModalConfirmacaoVisible(false);
-    setProdutoSelecionado(null);
-    
-    // Exibe mensagem de sucesso
-    Alert.alert(
-      "Resgate realizado com sucesso!",
-      "Você receberá mais informações sobre a entrega em breve.",
-      [{ text: "OK" }]
-    );
+    try {
+      // Desconta os pontos do saldo do usuário
+      const novoSaldo = pontos - produtoSelecionado.pontos;
+      setPontos(novoSaldo);
+      
+      // Atualizar pontos no Firebase
+      await atualizarPontosUsuario(novoSaldo);
+      
+      // Reduzir estoque do produto
+      if (produtoSelecionado.id && produtoSelecionado.estoque !== undefined && produtoSelecionado.estoque > 0) {
+        await updateDoc(doc(db, "loja", produtoSelecionado.id), {
+          estoque: produtoSelecionado.estoque - 1
+        });
+      }
+      
+      // Adiciona ao histórico
+      const novoHistorico: HistoricoItem = {
+        id: (historico.length + 1).toString(),
+        data: new Date().toLocaleDateString('pt-BR'),
+        descricao: `Resgate: ${produtoSelecionado.nome}`,
+        pontos: produtoSelecionado.pontos,
+        tipo: 'gasto'
+      };
+      
+      setHistorico([novoHistorico, ...historico]);
+      
+      // Atualizar a lista de produtos
+      await fetchProdutos();
+      
+      // Fecha o modal de confirmação
+      setModalConfirmacaoVisible(false);
+      setProdutoSelecionado(null);
+      
+      // Exibe mensagem de sucesso
+      Alert.alert(
+        "Resgate realizado com sucesso!",
+        "Você receberá mais informações sobre a entrega em breve.",
+        [{ text: "OK" }]
+      );
+    } catch (error) {
+      console.error("Erro ao finalizar resgate:", error);
+      Alert.alert("Erro", "Não foi possível finalizar o resgate. Tente novamente.");
+    }
   };
 
   // Função para mostrar detalhes do produto
@@ -283,6 +494,7 @@ const LojaScreen = () => {
   // Renderiza um item da grade de produtos
   const renderItem = ({ item }: { item: Produto }) => {
     const podeResgatar = verificarPontosParaResgate(item);
+    const estoqueIndisponivel = item.estoque !== undefined && item.estoque <= 0;
     
     return (
       <Pressable
@@ -293,11 +505,21 @@ const LojaScreen = () => {
         ]}
         onPress={() => mostrarDetalhesProduto(item)}
       >
-        <View style={styles.condicaoTag}>
-          <Text style={[styles.condicaoText, { color: colors.background }]}>
-            {item.condicao}
-          </Text>
-        </View>
+        {item.condicao && (
+          <View style={styles.condicaoTag}>
+            <Text style={[styles.condicaoText, { color: colors.background }]}>
+              {item.condicao}
+            </Text>
+          </View>
+        )}
+        
+        {estoqueIndisponivel && (
+          <View style={[styles.condicaoTag, { backgroundColor: colors.error }]}>
+            <Text style={[styles.condicaoText, { color: colors.background }]}>
+              Sem estoque
+            </Text>
+          </View>
+        )}
         
         <Image
           source={{ uri: item.imagem }}
@@ -380,7 +602,7 @@ const LojaScreen = () => {
                   color: podeResgatar ? colors.background : colors.error 
                 }
               ]}>
-                {podeResgatar ? 'Resgatar' : 'Indisponível'}
+                {estoqueIndisponivel ? 'Sem estoque' : (podeResgatar ? 'Resgatar' : 'Indisponível')}
               </Text>
             </TouchableOpacity>
           ) : null}
@@ -409,7 +631,7 @@ const LojaScreen = () => {
                 color: podeResgatar ? colors.background : colors.error 
               }
             ]}>
-              {podeResgatar ? 'Resgatar' : 'Indisponível'}
+              {estoqueIndisponivel ? 'Sem estoque' : (podeResgatar ? 'Resgatar' : 'Indisponível')}
             </Text>
           </TouchableOpacity>
         )}
@@ -465,6 +687,15 @@ const LojaScreen = () => {
     </View>
   );
 
+  if (isLoading) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.textPrimary }]}>Carregando produtos...</Text>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Barra de pontos do usuário */}
@@ -475,15 +706,29 @@ const LojaScreen = () => {
             Seus pontos: <Text style={{ color: colors.primary, fontWeight: 'bold' }}>{pontos.toLocaleString()}</Text>
           </Text>
         </View>
-        <TouchableOpacity 
-          style={[styles.botaoHistorico, { backgroundColor: colors.primary50 }]}
-          activeOpacity={0.7}
-          onPress={() => setModalHistoricoVisible(true)}
-        >
-          <Text style={[styles.botaoHistoricoTexto, { color: colors.background }]}>
-            Histórico
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.botoesPontos}>
+          <TouchableOpacity 
+            style={[styles.botaoSync, { backgroundColor: colors.primary }]}
+            activeOpacity={0.7}
+            onPress={sincronizarProdutos}
+            disabled={isSincronizando}
+          >
+            {isSincronizando ? (
+              <ActivityIndicator size="small" color={colors.background} />
+            ) : (
+              <FontAwesome name="refresh" size={14} color={colors.background} />
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.botaoHistorico, { backgroundColor: colors.primary50 }]}
+            activeOpacity={0.7}
+            onPress={() => setModalHistoricoVisible(true)}
+          >
+            <Text style={[styles.botaoHistoricoTexto, { color: colors.background }]}>
+              Histórico
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Cabeçalho da listagem */}
@@ -923,6 +1168,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginLeft: 4,
   },
+  botoesPontos: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  botaoSync: {
+    padding: 8,
+    borderRadius: 20,
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   botaoHistorico: {
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -1346,7 +1604,12 @@ const styles = StyleSheet.create({
   detalheBotaoTexto: {
     fontSize: 16,
     fontWeight: 'bold',
-  }
+  },
+  loadingText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 16,
+  },
 });
 
 export default LojaScreen; 
