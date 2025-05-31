@@ -5,8 +5,9 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useRouter } from 'expo-router';
 import { auth, db } from '@/services/firebase/firebase.config';
 import { signOut } from 'firebase/auth';
-import { collection, query, where, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, updateDoc, onSnapshot, orderBy } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { observarPontosUsuario, calcularMaximoPontosPorDia } from '@/services/firebase/fetchMaxPoints';
 
 // Função utilitária para gerar avatar
 const getAvatarUri = (name: string) => ({ uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=8B4513&color=fff` });
@@ -17,47 +18,56 @@ function ProfileCard({
   authorAvatar,
   title,
   description,
+  content,
   likes,
   isLiked,
   comments,
   onLike,
   onComment,
   onShare,
-  topFeedback
+  topFeedback,
+  userName,
+  isAnonimo
 }: any) {
   const { colors } = useTheme();
   return (
-    <View style={profileCardStyles.cardContainer}>
-      <View style={profileCardStyles.card}>
+    <View style={[profileCardStyles.cardContainer]}>
+      <View style={[profileCardStyles.card, { backgroundColor: colors.background50 }]}>
         <View style={profileCardStyles.cardHeader}>
           <View style={profileCardStyles.authorContainer}>
             <Image source={authorAvatar} style={profileCardStyles.avatar} />
-            <Text style={profileCardStyles.authorName}>{title}</Text>
+            <View>
+              <Text style={[profileCardStyles.authorName, { color: colors.textPrimary }]}>{title}</Text>
+              <Text style={[profileCardStyles.authorSubtitle, { color: colors.textSecondary }]}>
+                {isAnonimo ? 'Anônimo' : userName}
+              </Text>
+            </View>
           </View>
         </View>
-        <Text style={profileCardStyles.cardDescription}>{description}</Text>
+        <Text style={[profileCardStyles.cardDescription, { color: colors.textSecondary }]}>{description}</Text>
+        <Text style={[profileCardStyles.cardContent, { color: colors.textPrimary }]}>{content}</Text>
         <View style={profileCardStyles.cardActions}>
           <TouchableOpacity style={profileCardStyles.actionButton} onPress={onLike}>
-            <Ionicons name={isLiked ? 'heart' : 'heart-outline'} size={24} color="#8B4513" />
-            {likes > 0 && <Text style={profileCardStyles.likeCount}>{likes}</Text>}
+            <Ionicons name={isLiked ? 'heart' : 'heart-outline'} size={24} color={colors.primary} />
+            {likes > 0 && <Text style={[profileCardStyles.likeCount, { color: colors.primary }]}>{likes}</Text>}
           </TouchableOpacity>
           <TouchableOpacity style={profileCardStyles.actionButton} onPress={onComment}>
-            <Ionicons name="chatbubble-outline" size={22} color="#8B4513" />
-            {comments > 0 && <Text style={profileCardStyles.commentCount}>{comments}</Text>}
+            <Ionicons name="chatbubble-outline" size={22} color={colors.primary} />
+            {comments > 0 && <Text style={[profileCardStyles.commentCount, { color: colors.primary }]}>{comments}</Text>}
           </TouchableOpacity>
           <TouchableOpacity style={profileCardStyles.actionButton} onPress={onShare}>
-            <Ionicons name="paper-plane-outline" size={22} color="#8B4513" />
+            <Ionicons name="paper-plane-outline" size={22} color={colors.primary} />
           </TouchableOpacity>
         </View>
       </View>
       {topFeedback && (
-        <View style={profileCardStyles.feedbackContainer}>
+        <View style={[profileCardStyles.feedbackContainer, { backgroundColor: colors.background50 }]}>
           <View style={profileCardStyles.feedbackContent}>
             <Image source={topFeedback.authorAvatar} style={profileCardStyles.feedbackAvatar} />
-            <Text style={profileCardStyles.feedbackText}>{topFeedback.content}</Text>
+            <Text style={[profileCardStyles.feedbackText, { color: colors.textPrimary }]}>{topFeedback.content}</Text>
             <TouchableOpacity style={profileCardStyles.feedbackLikeButton}>
-              <Ionicons name={topFeedback.isLiked ? 'heart' : 'heart-outline'} size={18} color="#8B4513" />
-              <Text style={profileCardStyles.feedbackLikeCount}>{topFeedback.likes}</Text>
+              <Ionicons name={topFeedback.isLiked ? 'heart' : 'heart-outline'} size={18} color={colors.primary} />
+              <Text style={[profileCardStyles.feedbackLikeCount, { color: colors.primary }]}>{topFeedback.likes}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -72,7 +82,6 @@ const profileCardStyles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   card: {
-    backgroundColor: '#F2E2CE',
     borderRadius: 16,
     padding: 16,
     shadowColor: '#000',
@@ -100,11 +109,13 @@ const profileCardStyles = StyleSheet.create({
   authorName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+  },
+  authorSubtitle: {
+    fontSize: 12,
+    marginTop: 2,
   },
   cardDescription: {
     fontSize: 14,
-    color: '#555',
     marginBottom: 16,
   },
   cardActions: {
@@ -119,20 +130,17 @@ const profileCardStyles = StyleSheet.create({
   likeCount: {
     marginLeft: 4,
     fontSize: 12,
-    color: '#8B4513',
     fontWeight: '500',
   },
   commentCount: {
     marginLeft: 4,
     fontSize: 12,
-    color: '#8B4513',
     fontWeight: '500',
   },
   feedbackContainer: {
     marginTop: -10,
     marginLeft: 20,
     marginRight: 20,
-    backgroundColor: '#F2E2CE',
     borderRadius: 12,
     padding: 12,
     shadowColor: '#000',
@@ -155,7 +163,6 @@ const profileCardStyles = StyleSheet.create({
   feedbackText: {
     flex: 1,
     fontSize: 13,
-    color: '#333',
   },
   feedbackLikeButton: {
     padding: 4,
@@ -165,8 +172,12 @@ const profileCardStyles = StyleSheet.create({
   feedbackLikeCount: {
     marginLeft: 2,
     fontSize: 10,
-    color: '#8B4513',
     fontWeight: '500',
+  },
+  cardContent: {
+    fontSize: 14,
+    marginBottom: 16,
+    lineHeight: 20,
   },
 });
 
@@ -182,6 +193,8 @@ export default function ProfileScreen() {
   const [isAdminModalVisible, setIsAdminModalVisible] = useState(false);
   const [solicitacoes, setSolicitacoes] = useState<any[]>([]);
   const [isEmpresa, setIsEmpresa] = useState(false);
+  const [userPoints, setUserPoints] = useState(0);
+  const [maximoPontosPorDia, setMaximoPontosPorDia] = useState<number>(0);
 
   useEffect(() => {
     fetchUserData();
@@ -281,31 +294,72 @@ export default function ProfileScreen() {
       const userData = userDoc.data();
       setUserData(userData);
 
-      // Busca posts do usuário
-      const postsQuery = query(
-        collection(db, 'posts'),
-        where('authorId', '==', user.uid)
-      );
-      const postsSnapshot = await getDocs(postsQuery);
-      const postsData = postsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        authorAvatar: getAvatarUri(doc.data().authorName)
-      }));
-      setPosts(postsData);
+      // Configurar observador de pontos
+      const unsubscribePoints = observarPontosUsuario(user.uid, (novosPontos) => {
+        setUserPoints(novosPontos);
+      });
 
-      // Busca feedbacks do usuário
-      const feedbacksQuery = query(
-        collection(db, 'feedbacks'),
-        where('authorId', '==', user.uid)
+      // Calcular máximo de pontos por dia
+      const empresaId = userData?.tipo === 'empresa' ? user.uid : userData?.empresaId;
+      if (empresaId) {
+        const maximoDiario = await calcularMaximoPontosPorDia(empresaId);
+        setMaximoPontosPorDia(maximoDiario);
+      }
+
+      // Configurar observador de posts
+      const postsQuery = query(
+        collection(db, 'feedback'),
+        where('userId', '==', user.uid),
+        orderBy('createdAt', 'desc')
       );
-      const feedbacksSnapshot = await getDocs(feedbacksQuery);
-      const feedbacksData = feedbacksSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        authorAvatar: getAvatarUri(doc.data().authorName)
-      }));
-      setFeedbacks(feedbacksData);
+
+      const unsubscribePosts = onSnapshot(postsQuery, (snapshot) => {
+        const postsData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          authorAvatar: getAvatarUri(doc.data().userName || 'Anônimo'),
+          content: doc.data().content,
+          description: doc.data().descricao,
+          title: doc.data().titulo,
+          userName: doc.data().userName,
+          isAnonimo: doc.data().isAnonimo
+        }));
+        setPosts(postsData);
+      });
+
+      // Configurar observador de feedbacks
+      const feedbacksQuery = query(
+        collection(db, 'allFeedbacks'),
+        where('userId', '==', user.uid),
+        orderBy('createdAt', 'desc')
+      );
+
+      const unsubscribeFeedbacks = onSnapshot(feedbacksQuery, (snapshot) => {
+        const feedbacksData = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            authorAvatar: getAvatarUri(data.userName || 'Anônimo'),
+            content: data.content,
+            description: data.descricao || '',
+            title: data.titulo || '',
+            userName: data.userName,
+            isAnonimo: data.isAnonimo,
+            likes: data.likes || 0,
+            comments: data.comments || 0,
+            isLiked: data.isLiked || false
+          };
+        });
+        setFeedbacks(feedbacksData);
+      });
+
+      // Limpar observadores quando o componente for desmontado
+      return () => {
+        if (unsubscribePoints) unsubscribePoints();
+        if (unsubscribePosts) unsubscribePosts();
+        if (unsubscribeFeedbacks) unsubscribeFeedbacks();
+      };
 
     } catch (error) {
       console.error('Erro ao buscar dados:', error);
@@ -373,6 +427,17 @@ export default function ProfileScreen() {
         />
         <Text style={[styles.nameCentered, { color: colors.titlePrimary }]}>{userData?.nome || 'Usuário'}</Text>
         <Text style={[styles.companyCentered, { color: colors.textSecondary }]}>{userData?.nomeEmpresa || 'Empresa não informada'}</Text>
+        <View style={[styles.pointsContainer, { backgroundColor: colors.background50 }]}>
+          <Ionicons name="trophy" size={20} color={colors.warning} />
+          <View>
+            <Text style={[styles.pointsText, { color: colors.textPrimary }]}>
+              {userPoints.toLocaleString()} pontos
+            </Text>
+            <Text style={[styles.maximoDiarioTexto, { color: colors.textSecondary }]}>
+              Máximo diário: <Text style={{ color: colors.success, fontWeight: 'bold' }}>{maximoPontosPorDia.toLocaleString()} pts</Text>
+            </Text>
+          </View>
+        </View>
         <View style={styles.buttonRow}>
           <TouchableOpacity style={styles.editTextButton}>
             <Text style={[styles.editText, { color: colors.textSecondary }]}>Editar</Text>
@@ -385,16 +450,16 @@ export default function ProfileScreen() {
                 carregarSolicitacoes();
               }}
             >
-              <Ionicons name="cog-outline" size={20} color="#fff" />
-              <Text style={styles.adminText}>Admin</Text>
+              <Ionicons name="cog-outline" size={20} color={colors.background} />
+              <Text style={[styles.adminText, { color: colors.background }]}>Admin</Text>
             </TouchableOpacity>
           )}
           <TouchableOpacity 
             style={[styles.logoutButton, { backgroundColor: colors.primary }]}
             onPress={handleLogout}
           >
-            <Ionicons name="log-out-outline" size={20} color="#fff" />
-            <Text style={styles.logoutText}>Sair</Text>
+            <Ionicons name="log-out-outline" size={20} color={colors.background} />
+            <Text style={[styles.logoutText, { color: colors.background }]}>Sair</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -445,7 +510,7 @@ export default function ProfileScreen() {
         visible={isAdminModalVisible}
         onRequestClose={() => setIsAdminModalVisible(false)}
       >
-        <View style={styles.modalContainer}>
+        <View style={[styles.modalContainer, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
           <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: colors.titlePrimary }]}>
@@ -480,19 +545,19 @@ export default function ProfileScreen() {
                     
                     <View style={styles.acaoContainer}>
                       <TouchableOpacity 
-                        style={styles.botaoAprovar}
+                        style={[styles.botaoAprovar, { backgroundColor: colors.success }]}
                         onPress={() => handleAprovar(solicitacao)}
                       >
-                        <Ionicons name="checkmark-circle-outline" size={22} color="#fff" />
-                        <Text style={styles.botaoTexto}>Aprovar</Text>
+                        <Ionicons name="checkmark-circle-outline" size={22} color={colors.background} />
+                        <Text style={[styles.botaoTexto, { color: colors.background }]}>Aprovar</Text>
                       </TouchableOpacity>
                       
                       <TouchableOpacity 
-                        style={styles.botaoRecusar}
+                        style={[styles.botaoRecusar, { backgroundColor: colors.error }]}
                         onPress={() => handleRecusar(solicitacao)}
                       >
-                        <Ionicons name="close-circle-outline" size={22} color="#fff" />
-                        <Text style={styles.botaoTexto}>Recusar</Text>
+                        <Ionicons name="close-circle-outline" size={22} color={colors.background} />
+                        <Text style={[styles.botaoTexto, { color: colors.background }]}>Recusar</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -529,7 +594,6 @@ const styles = StyleSheet.create({
   },
   companyCentered: {
     fontSize: 16,
-    color: '#bdbdbd',
     marginBottom: 8,
     textAlign: 'center',
   },
@@ -540,7 +604,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     textDecorationLine: 'underline',
-    color: '#bdbdbd',
   },
   tabRowCentered: {
     flexDirection: 'row',
@@ -584,7 +647,6 @@ const styles = StyleSheet.create({
     marginLeft: 16,
   },
   logoutText: {
-    color: '#fff',
     marginLeft: 8,
     fontSize: 16,
     fontWeight: '500',
@@ -603,7 +665,6 @@ const styles = StyleSheet.create({
     marginLeft: 16,
   },
   adminText: {
-    color: '#fff',
     marginLeft: 8,
     fontSize: 16,
     fontWeight: '500',
@@ -612,7 +673,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
     width: '90%',
@@ -682,7 +742,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   botaoAprovar: {
-    backgroundColor: '#4CAF50',
     borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 16,
@@ -693,7 +752,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   botaoRecusar: {
-    backgroundColor: '#F44336',
     borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 16,
@@ -704,8 +762,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   botaoTexto: {
-    color: '#fff',
     fontWeight: 'bold',
     marginLeft: 8,
+  },
+  pointsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginBottom: 12,
+  },
+  pointsText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  maximoDiarioTexto: {
+    fontSize: 13,
+    marginTop: 2,
   },
 }); 

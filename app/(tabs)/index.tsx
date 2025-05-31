@@ -19,6 +19,7 @@ import { ChatModal } from '@/components/ChatModal';
 import { useTheme } from '@/contexts/ThemeContext';
 import { db, auth } from '@/services/firebase/firebase.config';
 import { collection, query, where, orderBy, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import { observarPontosUsuario, calcularMaximoPontosPorDia } from '@/services/firebase/fetchMaxPoints';
 
 // Função para gerar avatar com as iniciais do nome
 const getAvatarUri = (name: string) => {
@@ -61,9 +62,51 @@ export default function HomeScreen() {
   const [empresaData, setEmpresaData] = useState<Post[]>([]);
   const [isChatModalVisible, setIsChatModalVisible] = useState(false);
   const [selectedPostContent, setSelectedPostContent] = useState('');
+  const [userPoints, setUserPoints] = useState(0);
+  const [maximoPontosPorDia, setMaximoPontosPorDia] = useState<number>(0);
   const scrollY = useRef(new Animated.Value(0)).current;
   const router = useRouter();
   const { colors } = useTheme();
+
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const setupUserData = async () => {
+      try {
+        // Buscar dados do usuário para obter o empresaId
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        if (!userDoc.exists()) return;
+
+        const userData = userDoc.data();
+        
+        // Configurar observador de pontos
+        const unsubscribe = observarPontosUsuario(user.uid, (novosPontos) => {
+          setUserPoints(novosPontos);
+        });
+
+        // Calcular máximo de pontos por dia
+        const empresaId = userData.tipo === 'empresa' ? user.uid : userData.empresaId;
+        if (empresaId) {
+          const maximoDiario = await calcularMaximoPontosPorDia(empresaId);
+          setMaximoPontosPorDia(maximoDiario);
+        }
+
+        return unsubscribe;
+      } catch (error) {
+        console.error("Erro ao configurar dados do usuário:", error);
+      }
+    };
+
+    const unsubscribe = setupUserData();
+
+    // Limpar o observador quando o componente for desmontado
+    return () => {
+      if (unsubscribe) {
+        unsubscribe.then(unsub => unsub && unsub());
+      }
+    };
+  }, []);
 
   // Função para buscar os posts do feed
   const fetchFeedPosts = async () => {
@@ -468,13 +511,20 @@ export default function HomeScreen() {
       
       {/* Header com abas */}
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <Text style={[styles.headerTitle, { color: colors.titlePrimary }]}>Feed</Text>
-        <TouchableOpacity 
-          style={[styles.chatButton, { backgroundColor: colors.background50 }]}
-          onPress={() => setIsChatModalVisible(true)}
-        >
-          <Ionicons name="chatbubble-outline" size={24} color={colors.primary} />
-        </TouchableOpacity>
+        <View style={styles.headerLeft}>
+          <Text style={[styles.headerTitle, { color: colors.titlePrimary }]}>Feed</Text>
+          <View style={[styles.pointsContainer, { backgroundColor: colors.background50 }]}>
+            <Ionicons name="trophy" size={20} color={colors.warning} />
+            <View>
+              <Text style={[styles.pointsText, { color: colors.textPrimary }]}>
+                {userPoints.toLocaleString()} pontos
+              </Text>
+              <Text style={[styles.maximoDiarioTexto, { color: colors.textSecondary }]}>
+                Máximo diário: <Text style={{ color: colors.success, fontWeight: 'bold' }}>{maximoPontosPorDia.toLocaleString()} pts</Text>
+              </Text>
+            </View>
+          </View>
+        </View>
       </View>
       
       {/* Abas de seleção */}
@@ -559,13 +609,14 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     borderBottomWidth: 1,
   },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-  },
-  chatButton: {
-    padding: 8,
-    borderRadius: 20,
   },
   tabBar: {
     flexDirection: 'row',
@@ -692,5 +743,21 @@ const styles = StyleSheet.create({
   },
   scrollEndSpacer: {
     height: 80, // Espaço extra no final da lista para melhorar a experiência de rolagem
-  }
+  },
+  pointsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  pointsText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  maximoDiarioTexto: {
+    fontSize: 13,
+    marginTop: 2,
+  },
 }); 

@@ -30,6 +30,7 @@ import {
   orderBy,
   serverTimestamp
 } from 'firebase/firestore';
+import { calcularMaximoPontosPorDia, observarPontosUsuario } from '@/services/firebase/fetchMaxPoints';
 
 const { width } = Dimensions.get('window');
 
@@ -171,18 +172,15 @@ const LojaScreen = () => {
   const [visualizacao, setVisualizacao] = useState('grade'); // 'grade' ou 'lista'
   const [produtosEncontrados, setProdutosEncontrados] = useState(0);
   const [pontos, setPontos] = useState(0); // Pontos do usuário
-  const [modalHistoricoVisible, setModalHistoricoVisible] = useState(false);
   const [modalOrdenacaoVisible, setModalOrdenacaoVisible] = useState(false);
   const [modalConfirmacaoVisible, setModalConfirmacaoVisible] = useState(false);
   const [modalDetalhesVisible, setModalDetalhesVisible] = useState(false);
-  const [modalSincronizacaoVisible, setModalSincronizacaoVisible] = useState(false);
   const [produtoSelecionado, setProdutoSelecionado] = useState<Produto | null>(null);
   const [ordenacaoSelecionada, setOrdenacaoSelecionada] = useState(OPCOES_ORDENACAO[0]);
   const [produtosOrdenados, setProdutosOrdenados] = useState<Produto[]>([]);
-  const [historico, setHistorico] = useState<HistoricoItem[]>([...HISTORICO]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSincronizando, setIsSincronizando] = useState(false);
   const [userData, setUserData] = useState<any>(null);
+  const [maximoPontosPorDia, setMaximoPontosPorDia] = useState<number>(0);
 
   // Buscar usuário atual e seus pontos
   useEffect(() => {
@@ -200,15 +198,17 @@ const LojaScreen = () => {
         if (userDoc.exists()) {
           const userData = userDoc.data();
           setUserData(userData);
-          // Verificar se o usuário tem pontos, se não, inicializar com 0
-          const userPontos = userData.pontos !== undefined ? userData.pontos : 0;
-          setPontos(userPontos);
           
-          // Se não tiver pontos, atualizar no Firebase
-          if (userData.pontos === undefined) {
-            await updateDoc(doc(db, "users", user.uid), {
-              pontos: 0
-            });
+          // Configurar observador de pontos
+          const unsubscribe = observarPontosUsuario(user.uid, (novosPontos) => {
+            setPontos(novosPontos);
+          });
+
+          // Calcular máximo de pontos por dia
+          const empresaId = userData.tipo === 'empresa' ? user.uid : userData.empresaId;
+          if (empresaId) {
+            const maximoDiario = await calcularMaximoPontosPorDia(empresaId);
+            setMaximoPontosPorDia(maximoDiario);
           }
         }
         
@@ -267,10 +267,8 @@ const LojaScreen = () => {
   // Função para sincronizar produtos com o Firebase
   const sincronizarProdutos = async () => {
     try {
-      setIsSincronizando(true);
       const user = auth.currentUser;
       if (!user) {
-        setIsSincronizando(false);
         Alert.alert("Erro", "Usuário não autenticado.");
         return;
       }
@@ -278,7 +276,6 @@ const LojaScreen = () => {
       // Verificar se o usuário tem acesso à empresa
       const userDoc = await getDoc(doc(db, "users", user.uid));
       if (!userDoc.exists()) {
-        setIsSincronizando(false);
         Alert.alert("Erro", "Dados do usuário não encontrados.");
         return;
       }
@@ -288,7 +285,6 @@ const LojaScreen = () => {
       const nomeEmpresa = userData.nomeEmpresa;
 
       if (!empresaId || !nomeEmpresa) {
-        setIsSincronizando(false);
         Alert.alert("Erro", "Informações da empresa não encontradas.");
         return;
       }
@@ -357,10 +353,8 @@ const LojaScreen = () => {
       }
       
       await fetchProdutos();
-      setIsSincronizando(false);
     } catch (error) {
       console.error("Erro ao sincronizar produtos:", error);
-      setIsSincronizando(false);
       Alert.alert("Erro", "Não foi possível sincronizar os produtos.");
     }
   };
@@ -457,14 +451,12 @@ const LojaScreen = () => {
       
       // Adiciona ao histórico
       const novoHistorico: HistoricoItem = {
-        id: (historico.length + 1).toString(),
+        id: (HISTORICO.length + 1).toString(),
         data: new Date().toLocaleDateString('pt-BR'),
         descricao: `Resgate: ${produtoSelecionado.nome}`,
         pontos: produtoSelecionado.pontos,
         tipo: 'gasto'
       };
-      
-      setHistorico([novoHistorico, ...historico]);
       
       // Atualizar a lista de produtos
       await fetchProdutos();
@@ -640,52 +632,50 @@ const LojaScreen = () => {
   };
 
   // Renderiza um item do histórico
-  const renderHistoricoItem = ({ item }: { item: HistoricoItem }) => (
-    <View style={[styles.historicoItem, { borderBottomColor: colors.border }]}>
-      <View style={styles.historicoHeader}>
-        <Text style={[styles.historicoData, { color: colors.textSecondary }]}>
-          {item.data}
-        </Text>
-        <View style={[
-          styles.historicoTag, 
-          { 
-            backgroundColor: item.tipo === 'ganho' 
-              ? colors.success 
-              : colors.error + '20',
-            borderColor: item.tipo === 'ganho' 
-              ? colors.success 
-              : colors.error,
-          }
-        ]}>
-          <Text style={[
-            styles.historicoTagText, 
-            { 
-              color: item.tipo === 'ganho' 
-                ? colors.background 
-                : colors.error 
-            }
-          ]}>
-            {item.tipo === 'ganho' ? 'Ganho' : 'Gasto'}
+  const renderHistoricoItem = ({ item }: { item: HistoricoItem }) => {
+    const { colors } = useTheme();
+    return (
+      <View style={styles.modalBody}>
+        <View style={styles.modalHeader}>
+          <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
+            {item.data}
           </Text>
+          <View style={[styles.modalButton, { backgroundColor: item.tipo === 'ganho' ? colors.success : colors.error }]}>
+            <Text style={[styles.modalButtonText, { color: '#FFFFFF' }]}>
+              {item.tipo === 'ganho' ? 'Ganho' : 'Gasto'}
+            </Text>
+          </View>
         </View>
+        <Text style={[styles.modalBody, { color: colors.textPrimary }]}>
+          {item.descricao}
+        </Text>
+        <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
+          {item.pontos} pontos
+        </Text>
       </View>
-      
-      <Text style={[styles.historicoDescricao, { color: colors.textPrimary }]}>
-        {item.descricao}
-      </Text>
-      
-      <Text style={[
-        styles.historicoPontos, 
-        { 
-          color: item.tipo === 'ganho' 
-            ? colors.success 
-            : colors.error 
-        }
-      ]}>
-        {item.tipo === 'ganho' ? '+' : '-'}{item.pontos.toLocaleString()} pontos
-      </Text>
-    </View>
-  );
+    );
+  };
+
+  // Renderiza um item de ordenação
+  const renderOrdenacaoOption = ({ item }: { item: { id: string; nome: string } }) => {
+    const { colors } = useTheme();
+    return (
+      <TouchableOpacity
+        style={[styles.ordenacaoItem, { backgroundColor: colors.background }]}
+        onPress={() => {
+          setOrdenacaoSelecionada(item);
+          setModalOrdenacaoVisible(false);
+        }}
+      >
+        <Text style={[styles.ordenacaoItemText, { color: colors.textPrimary }]}>
+          {item.nome}
+        </Text>
+        {ordenacaoSelecionada.id === item.id && (
+          <FontAwesome name="check" size={16} color={colors.primary} style={styles.checkIcon} />
+        )}
+      </TouchableOpacity>
+    );
+  };
 
   if (isLoading) {
     return (
@@ -702,32 +692,14 @@ const LojaScreen = () => {
       <View style={[styles.pontosContainer, { backgroundColor: colors.background50 }]}>
         <View style={styles.pontosInfo}>
           <FontAwesome name="trophy" size={24} color={colors.warning} />
-          <Text style={[styles.pontosTexto, { color: colors.textPrimary }]}>
-            Seus pontos: <Text style={{ color: colors.primary, fontWeight: 'bold' }}>{pontos.toLocaleString()}</Text>
-          </Text>
-        </View>
-        <View style={styles.botoesPontos}>
-          <TouchableOpacity 
-            style={[styles.botaoSync, { backgroundColor: colors.primary }]}
-            activeOpacity={0.7}
-            onPress={sincronizarProdutos}
-            disabled={isSincronizando}
-          >
-            {isSincronizando ? (
-              <ActivityIndicator size="small" color={colors.background} />
-            ) : (
-              <FontAwesome name="refresh" size={14} color={colors.background} />
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.botaoHistorico, { backgroundColor: colors.primary50 }]}
-            activeOpacity={0.7}
-            onPress={() => setModalHistoricoVisible(true)}
-          >
-            <Text style={[styles.botaoHistoricoTexto, { color: colors.background }]}>
-              Histórico
+          <View>
+            <Text style={[styles.pontosTexto, { color: colors.textPrimary }]}>
+              Seus pontos: <Text style={{ color: colors.primary, fontWeight: 'bold' }}>{pontos.toLocaleString()}</Text>
             </Text>
-          </TouchableOpacity>
+            <Text style={[styles.maximoDiarioTexto, { color: colors.textSecondary }]}>
+              Máximo diário: <Text style={{ color: colors.success, fontWeight: 'bold' }}>{maximoPontosPorDia.toLocaleString()} pts</Text>
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -800,37 +772,6 @@ const LojaScreen = () => {
         contentContainerStyle={styles.produtosContainer}
         showsVerticalScrollIndicator={false}
       />
-
-      {/* Modal de Histórico */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalHistoricoVisible}
-        onRequestClose={() => setModalHistoricoVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
-                Histórico de Pontos
-              </Text>
-              <TouchableOpacity
-                onPress={() => setModalHistoricoVisible(false)}
-                style={styles.closeButton}
-              >
-                <FontAwesome name="times" size={24} color={colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-            
-            <FlatList
-              data={historico}
-              renderItem={renderHistoricoItem}
-              keyExtractor={(item) => item.id}
-              contentContainerStyle={styles.historicoList}
-            />
-          </View>
-        </View>
-      </Modal>
 
       {/* Modal de Ordenação */}
       <Modal
@@ -1147,7 +1088,24 @@ const LojaScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 16,
+  },
+  header: {
+    padding: 16,
+    borderBottomWidth: 1,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+  },
+  searchInput: {
+    flex: 1,
+    height: 40,
+  },
+  searchIcon: {
+    marginRight: 8,
   },
   pontosContainer: {
     flexDirection: 'row',
@@ -1168,27 +1126,164 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginLeft: 4,
   },
-  botoesPontos: {
+  maximoDiarioTexto: {
+    fontSize: 13,
+    marginTop: 2,
+  },
+  visualizacaoContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  visualizacaoButtons: {
     flexDirection: 'row',
     gap: 8,
-    alignItems: 'center',
   },
-  botaoSync: {
+  visualizacaoButton: {
     padding: 8,
-    borderRadius: 20,
-    width: 32,
-    height: 32,
+    borderRadius: 8,
+  },
+  ordenacaoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    padding: 8,
+    borderRadius: 8,
+  },
+  ordenacaoTexto: {
+    fontSize: 14,
+  },
+  content: {
+    flex: 1,
+  },
+  gridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    padding: 8,
+  },
+  listContainer: {
+    padding: 8,
+  },
+  card: {
+    margin: 8,
+    borderRadius: 12,
+    overflow: 'hidden',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  cardContent: {
+    padding: 12,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  cardDescription: {
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  pontos: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  resgatarButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  resgatarButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+  },
+  closeButton: {
+    padding: 8,
+  },
+  modalBody: {
+    marginBottom: 20,
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+  },
+  modalButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  modalButtonText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  ordenacaoList: {
+    marginTop: 12,
+  },
+  ordenacaoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  ordenacaoItemText: {
+    fontSize: 16,
+    marginLeft: 12,
+  },
+  checkIcon: {
+    marginLeft: 'auto',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  emptyText: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginTop: 12,
+  },
+  loadingContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  botaoHistorico: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  botaoHistoricoTexto: {
-    fontSize: 14,
-    fontWeight: '500',
+  loadingText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 16,
   },
   cabecalho: {
     flexDirection: 'row',
@@ -1338,94 +1433,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  // Estilos para o modal de histórico
-  modalContainer: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    width: '90%',
-    maxHeight: '80%',
-    borderRadius: 12,
-    padding: 20,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  closeButton: {
-    padding: 4,
-  },
-  historicoList: {
-    paddingBottom: 20,
-  },
-  historicoItem: {
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-  },
-  historicoHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  historicoData: {
-    fontSize: 14,
-  },
-  historicoTag: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    borderWidth: 1,
-  },
-  historicoTagText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  historicoDescricao: {
-    fontSize: 16,
-    marginBottom: 8,
-  },
-  historicoPontos: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  // Estilos para o modal de ordenação
-  ordenacaoModalContent: {
-    position: 'absolute',
-    borderRadius: 8,
-    borderWidth: 1,
-    padding: 0,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  ordenacaoOption: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-  },
-  ordenacaoOptionText: {
-    fontSize: 14,
-  },
-  // Estilos para o modal de confirmação
   modalConfirmacao: {
     width: '90%',
     borderRadius: 12,
@@ -1496,7 +1503,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  // Estilos para o modal de detalhes
   modalDetalhe: {
     width: '92%',
     maxHeight: '90%',
@@ -1605,10 +1611,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  loadingText: {
+  ordenacaoModalContent: {
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+  },
+  ordenacaoOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  ordenacaoOptionText: {
     fontSize: 16,
-    fontWeight: 'bold',
-    marginTop: 16,
   },
 });
 

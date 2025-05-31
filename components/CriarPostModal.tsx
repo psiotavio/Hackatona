@@ -11,6 +11,8 @@ import {
 	Platform,
 	ScrollView,
 	Switch,
+	KeyboardAvoidingView,
+	ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../contexts/ThemeContext";
@@ -47,10 +49,23 @@ export default function CriarPost({
 	const [imagem, setImagem] = useState("");
 	const [link, setLink] = useState("");
 	const [anonimo, setAnonimo] = useState(false);
+	const [isLoading, setIsLoading] = useState(false);
+	const [caracteresRestantes, setCaracteresRestantes] = useState(500);
 
 	useEffect(() => {
-		if (visible) setAnonimo(false);
+		if (visible) {
+			setAnonimo(false);
+			setTitulo("");
+			setDescricao("");
+			setImagem("");
+			setLink("");
+			setCaracteresRestantes(500);
+		}
 	}, [visible]);
+
+	useEffect(() => {
+		setCaracteresRestantes(500 - descricao.length);
+	}, [descricao]);
 
 	// Função para criar feedback no Firestore
 	const handleSendFeedback = async (feedbackData: {
@@ -60,6 +75,7 @@ export default function CriarPost({
 		link?: string;
 	}) => {
 		try {
+			setIsLoading(true);
 			const user = auth.currentUser;
 			let empresaId = null;
 			let nomeEmpresa = null;
@@ -88,10 +104,15 @@ export default function CriarPost({
 			console.log("Feedback criado com sucesso!");
 		} catch (error) {
 			console.error("Erro ao criar feedback:", error);
+		} finally {
+			setIsLoading(false);
 		}
 	};
 
 	const handleSend = () => {
+		if (!titulo.trim() || !descricao.trim()) {
+			return;
+		}
 		onSubmit({
 			titulo,
 			descricao,
@@ -99,234 +120,313 @@ export default function CriarPost({
 			link: link || undefined,
 		});
 		handleSendFeedback({ titulo, descricao, imagem, link });
-		setTitulo("");
-		setDescricao("");
-		setImagem("");
-		setLink("");
 		onClose();
 	};
 
+	const isValid = titulo.trim().length > 0 && descricao.trim().length > 0;
+
 	return (
 		<Modal
-			animationType="fade"
+			animationType="slide"
 			transparent={true}
 			visible={visible}
 			onRequestClose={onClose}
 		>
-			<View style={styles.overlay}>
-				<View
-					style={[styles.content, { backgroundColor: colors.background50 }]}
-				>
-					<View style={styles.header}>
-						<TouchableOpacity style={styles.closeButton} onPress={onClose}>
+			<KeyboardAvoidingView 
+				behavior={Platform.OS === "ios" ? "padding" : "height"}
+				style={styles.container}
+			>
+				<View style={[styles.overlay, { backgroundColor: colors.background }]}>
+					<View style={[styles.header, { 
+						backgroundColor: colors.background,
+						borderBottomColor: colors.border 
+					}]}>
+						<TouchableOpacity 
+							style={styles.closeButton} 
+							onPress={onClose}
+							hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+						>
 							<Ionicons name="close" size={28} color={colors.textPrimary} />
 						</TouchableOpacity>
+						<Text style={[styles.title, { color: colors.textPrimary }]}>
+							Nova Publicação
+						</Text>
 					</View>
+
 					<ScrollView
 						style={styles.formContainer}
-						contentContainerStyle={{ paddingBottom: 32 }}
+						contentContainerStyle={styles.formContent}
+						keyboardShouldPersistTaps="handled"
 					>
-						<Text style={[styles.label, { color: colors.textPrimary }]}>
-							Título
-						</Text>
-						<TextInput
-							style={[
-								styles.input,
-								{
-									backgroundColor: colors.background,
-									borderColor: colors.border,
-									color: colors.textPrimary,
-								},
-							]}
-							placeholder="Digite o título"
-							placeholderTextColor={colors.textSecondary}
-							value={titulo}
-							onChangeText={setTitulo}
-						/>
-						<Text style={[styles.label, { color: colors.textPrimary }]}>
-							Descrição
-						</Text>
-						<TextInput
-							style={[
-								styles.input,
-								{
-									backgroundColor: colors.background,
-									borderColor: colors.border,
-									color: colors.textPrimary,
-									height: 80,
-								},
-							]}
-							placeholder="Digite a descrição"
-							placeholderTextColor={colors.textSecondary}
-							value={descricao}
-							onChangeText={setDescricao}
-							multiline
-						/>
-						<Text style={[styles.label, { color: colors.textPrimary }]}>
-							Imagem (opcional, URL)
-						</Text>
-						<TextInput
-							style={[
-								styles.input,
-								{
-									backgroundColor: colors.background,
-									borderColor: colors.border,
-									color: colors.textPrimary,
-								},
-							]}
-							placeholder="URL da imagem (opcional)"
-							placeholderTextColor={colors.textSecondary}
-							value={imagem}
-							onChangeText={setImagem}
-						/>
-						{imagem ? (
-							<Image
-								source={{ uri: imagem }}
-								style={styles.imagePreview}
-								resizeMode="contain"
+						<View style={styles.inputGroup}>
+							<Text style={[styles.label, { color: colors.textPrimary }]}>
+								Título
+							</Text>
+							<TextInput
+								style={[
+									styles.input,
+									{
+										backgroundColor: colors.background50,
+										borderColor: colors.border,
+										color: colors.textPrimary,
+									},
+								]}
+								placeholder="Digite o título"
+								placeholderTextColor={colors.textSecondary}
+								value={titulo}
+								onChangeText={setTitulo}
+								maxLength={100}
 							/>
-						) : null}
-						<Text style={[styles.label, { color: colors.textPrimary }]}>
-							Link (opcional)
-						</Text>
-						<TextInput
-							style={[
-								styles.input,
-								{
-									backgroundColor: colors.background,
-									borderColor: colors.border,
-									color: colors.textPrimary,
-								},
-							]}
-							placeholder="Link (opcional)"
-							placeholderTextColor={colors.textSecondary}
-							value={link}
-							onChangeText={setLink}
-							autoCapitalize="none"
-						/>
-						<View
-							style={{
-								flexDirection: "row",
-								alignItems: "center",
-								marginTop: 8,
-								marginBottom: 16,
-							}}
-						>
-							<Switch value={anonimo} onValueChange={setAnonimo} />
-							<Text
-								style={{
-									marginLeft: 8,
-									color: colors.textPrimary,
-									fontSize: 16,
-								}}
-							>
-								Enviar como anônimo
+						</View>
+
+						<View style={styles.inputGroup}>
+							<Text style={[styles.label, { color: colors.textPrimary }]}>
+								Descrição
+							</Text>
+							<TextInput
+								style={[
+									styles.input,
+									styles.textArea,
+									{
+										backgroundColor: colors.background50,
+										borderColor: colors.border,
+										color: colors.textPrimary,
+									},
+								]}
+								placeholder="Digite a descrição"
+								placeholderTextColor={colors.textSecondary}
+								value={descricao}
+								onChangeText={setDescricao}
+								multiline
+								maxLength={500}
+								textAlignVertical="top"
+							/>
+							<Text style={[styles.charCount, { 
+								color: caracteresRestantes < 50 ? colors.error : colors.textSecondary 
+							}]}>
+								{caracteresRestantes} caracteres restantes
 							</Text>
 						</View>
+
+						<View style={styles.inputGroup}>
+							<Text style={[styles.label, { color: colors.textPrimary }]}>
+								Imagem (opcional)
+							</Text>
+							<TextInput
+								style={[
+									styles.input,
+									{
+										backgroundColor: colors.background50,
+										borderColor: colors.border,
+										color: colors.textPrimary,
+									},
+								]}
+								placeholder="URL da imagem"
+								placeholderTextColor={colors.textSecondary}
+								value={imagem}
+								onChangeText={setImagem}
+								autoCapitalize="none"
+							/>
+							{imagem ? (
+								<View style={styles.imagePreviewContainer}>
+									<Image
+										source={{ uri: imagem }}
+										style={styles.imagePreview}
+										resizeMode="cover"
+									/>
+									<TouchableOpacity 
+										style={[styles.removeImageButton, { backgroundColor: colors.error }]}
+										onPress={() => setImagem("")}
+									>
+										<Ionicons name="close" size={20} color={colors.background} />
+									</TouchableOpacity>
+								</View>
+							) : null}
+						</View>
+
+						<View style={styles.inputGroup}>
+							<Text style={[styles.label, { color: colors.textPrimary }]}>
+								Link (opcional)
+							</Text>
+							<TextInput
+								style={[
+									styles.input,
+									{
+										backgroundColor: colors.background50,
+										borderColor: colors.border,
+										color: colors.textPrimary,
+									},
+								]}
+								placeholder="Cole o link aqui"
+								placeholderTextColor={colors.textSecondary}
+								value={link}
+								onChangeText={setLink}
+								autoCapitalize="none"
+								keyboardType="url"
+							/>
+						</View>
+
+						<View style={[styles.anonimoContainer, { 
+							backgroundColor: colors.background50,
+							borderColor: colors.border 
+						}]}>
+							<View style={styles.anonimoTextContainer}>
+								<Ionicons name="eye-off" size={20} color={colors.textPrimary} />
+								<Text style={[styles.anonimoText, { color: colors.textPrimary }]}>
+									Enviar como anônimo
+								</Text>
+							</View>
+							<Switch 
+								value={anonimo} 
+								onValueChange={setAnonimo}
+								trackColor={{ false: colors.border, true: colors.primary }}
+								thumbColor={colors.background}
+							/>
+						</View>
 					</ScrollView>
-					<TouchableOpacity
-						style={[styles.button, { backgroundColor: colors.primary }]}
-						onPress={handleSend}
-					>
-						<Text style={[styles.buttonText, { color: colors.background }]}>
-							Enviar
-						</Text>
-					</TouchableOpacity>
+
+					<View style={[styles.footer, { 
+						backgroundColor: colors.background,
+						borderTopColor: colors.border 
+					}]}>
+						<TouchableOpacity
+							style={[
+								styles.button,
+								{ 
+									backgroundColor: isValid ? colors.primary : colors.background50,
+									opacity: isValid ? 1 : 0.7
+								}
+							]}
+							onPress={handleSend}
+							disabled={!isValid || isLoading}
+						>
+							{isLoading ? (
+								<ActivityIndicator color={colors.background} />
+							) : (
+								<Text style={[styles.buttonText, { color: colors.background }]}>
+									Publicar
+								</Text>
+							)}
+						</TouchableOpacity>
+					</View>
 				</View>
-			</View>
+			</KeyboardAvoidingView>
 		</Modal>
 	);
 }
 
 const styles = StyleSheet.create({
+	container: {
+		flex: 1,
+	},
 	overlay: {
 		flex: 1,
-		backgroundColor: "#E6CCB2",
-		padding: 0,
-	},
-	content: {
-		flex: 1,
-		width: "100%",
-		height: "100%",
-		borderRadius: 0,
-		padding: 0,
-		backgroundColor: "#E6CCB2",
 	},
 	header: {
-		height: 64,
+		height: 94,
 		flexDirection: "row",
 		alignItems: "center",
 		justifyContent: "center",
-		backgroundColor: "#E6CCB2",
 		borderBottomWidth: 1,
-		borderBottomColor: "#d9c3a3",
 		paddingHorizontal: 16,
-		position: "absolute",
-		top: 0,
-		left: 0,
-		right: 0,
-		zIndex: 10,
+		paddingTop: 40,
 	},
 	title: {
-		flex: 1,
-		fontSize: 20,
-		fontWeight: "bold",
-		textAlign: "center",
-		color: "#333",
+		fontSize: 18,
+		fontWeight: "600",
 	},
 	closeButton: {
 		position: "absolute",
 		right: 16,
-		top: 16,
+		top: 56,
 		padding: 4,
 		zIndex: 20,
 	},
 	formContainer: {
 		flex: 1,
-		marginTop: 64,
-		marginBottom: 72,
-		paddingHorizontal: 20,
-		paddingTop: 16,
+	},
+	formContent: {
+		padding: 20,
+		paddingBottom: 100,
+	},
+	inputGroup: {
+		marginBottom: 20,
 	},
 	label: {
 		fontSize: 16,
 		fontWeight: "600",
 		marginBottom: 8,
-		marginLeft: 4,
-		marginTop: 8,
 	},
 	input: {
 		width: "100%",
 		height: 48,
-		borderWidth: 1.5,
-		borderRadius: 24,
-		paddingHorizontal: 20,
+		borderWidth: 1,
+		borderRadius: 12,
+		paddingHorizontal: 16,
 		fontSize: 16,
-		marginBottom: 8,
+	},
+	textArea: {
+		height: 120,
+		paddingTop: 12,
+		paddingBottom: 12,
+	},
+	charCount: {
+		fontSize: 12,
+		marginTop: 4,
+		textAlign: "right",
+	},
+	imagePreviewContainer: {
+		marginTop: 12,
+		position: "relative",
 	},
 	imagePreview: {
 		width: "100%",
-		height: 120,
+		height: 200,
 		borderRadius: 12,
-		marginBottom: 8,
-		marginTop: 4,
-		backgroundColor: "#eee",
+	},
+	removeImageButton: {
+		position: "absolute",
+		top: 8,
+		right: 8,
+		width: 32,
+		height: 32,
+		borderRadius: 16,
+		justifyContent: "center",
+		alignItems: "center",
+	},
+	anonimoContainer: {
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "space-between",
+		padding: 16,
+		borderRadius: 12,
+		borderWidth: 1,
+		marginTop: 8,
+	},
+	anonimoTextContainer: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: 8,
+	},
+	anonimoText: {
+		fontSize: 16,
+	},
+	footer: {
+		position: "absolute",
+		bottom: 0,
+		left: 0,
+		right: 0,
+		padding: 16,
+		borderTopWidth: 1,
 	},
 	button: {
-		position: "absolute",
-		bottom: 16,
-		left: 16,
-		right: 16,
 		height: 52,
 		borderRadius: 26,
 		alignItems: "center",
 		justifyContent: "center",
-		marginTop: 16,
-		marginBottom: 8,
-		elevation: 2,
 	},
 	buttonText: {
-		fontSize: 18,
-		fontWeight: "bold",
+		fontSize: 16,
+		fontWeight: "600",
 	},
 });
