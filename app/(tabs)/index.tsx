@@ -15,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
+import { ChatModal } from '@/components/ChatModal';
 
 // Função para gerar avatar com as iniciais do nome
 const getAvatarUri = (name) => {
@@ -287,6 +288,8 @@ export default function HomeScreen() {
   const [activeTab, setActiveTab] = useState('time'); // 'time' ou 'empresa'
   const [timeData, setTimeData] = useState([...TIME_DATA]);
   const [empresaData, setEmpresaData] = useState([...EMPRESA_DATA]);
+  const [isChatModalVisible, setIsChatModalVisible] = useState(false);
+  const [selectedPostContent, setSelectedPostContent] = useState('');
   const scrollY = useRef(new Animated.Value(0)).current;
   const router = useRouter();
 
@@ -416,7 +419,13 @@ export default function HomeScreen() {
 
   // Função para exibir comentários
   const handleComments = (cardId) => {
-    Alert.alert('Comentários', 'Funcionalidade de comentários será implementada em breve!');
+    const currentData = activeTab === 'time' ? timeData : empresaData;
+    const selectedPost = currentData.find(card => card.id === cardId);
+    
+    if (selectedPost) {
+      setSelectedPostContent(selectedPost.description);
+      setIsChatModalVisible(true);
+    }
   };
 
   const renderCard = (tarefa, index) => {
@@ -538,39 +547,17 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar style="dark" />
+      <StatusBar style="auto" />
       
       {/* Header com abas */}
       <View style={styles.header}>
-        <View style={styles.tabsContainer}>
-          <TouchableOpacity 
-            style={[styles.tab, activeTab === 'time' && styles.activeTab]}
-            onPress={() => setActiveTab('time')}
-          >
-            <Text 
-              style={[
-                styles.tabText, 
-                activeTab === 'time' && styles.activeTabText
-              ]}
-            >
-              Time
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.tab, activeTab === 'empresa' && styles.activeTab]}
-            onPress={() => setActiveTab('empresa')}
-          >
-            <Text 
-              style={[
-                styles.tabText, 
-                activeTab === 'empresa' && styles.activeTabText
-              ]}
-            >
-              Empresa
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <Text style={styles.headerTitle}>Feed</Text>
+        <TouchableOpacity 
+          style={styles.chatButton}
+          onPress={() => setIsChatModalVisible(true)}
+        >
+          <Ionicons name="chatbubble-outline" size={24} color="#8B4513" />
+        </TouchableOpacity>
       </View>
       
       {/* Conteúdo principal */}
@@ -586,6 +573,14 @@ export default function HomeScreen() {
         {currentData.map((tarefa, index) => renderCard(tarefa, index))}
         <View style={styles.scrollEndSpacer} />
       </Animated.ScrollView>
+      <ChatModal 
+        visible={isChatModalVisible}
+        onClose={() => {
+          setIsChatModalVisible(false);
+          setSelectedPostContent('');
+        }}
+        postContent={selectedPostContent}
+      />
     </SafeAreaView>
   );
 }
@@ -604,33 +599,15 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E5D3B3', // Cor bege mais escura para a borda
   },
-  tabsContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'center', // Centraliza as abas
-    alignItems: 'center',
-    marginRight: 24, // Espaço para equilibrar com o botão de voltar
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
   },
-  tab: {
-    marginHorizontal: 12,
-    paddingBottom: 8,
-    paddingHorizontal: 8,
-  },
-  activeTab: {
-    borderBottomWidth: 2,
-    borderBottomColor: '#8B4513', // Marrom para combinar com o resto da UI
-  },
-  tabText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#9E9E9E',
-  },
-  activeTabText: {
-    color: '#8B4513',
-    fontWeight: '600',
-  },
-  backButton: {
+  chatButton: {
     padding: 8,
+    borderRadius: 20,
+    backgroundColor: '#F5F5F5',
   },
   scrollView: {
     flex: 1,
