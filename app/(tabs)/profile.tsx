@@ -1,10 +1,11 @@
-import React, { useState, useRef } from 'react';
-import { StyleSheet, View, Text, ScrollView, Image, TouchableOpacity, Pressable, Animated, Alert } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { StyleSheet, View, Text, ScrollView, Image, TouchableOpacity, Pressable, Animated, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useRouter } from 'expo-router';
-import { auth } from '@/services/firebase/firebase.config';
+import { auth, db } from '@/services/firebase/firebase.config';
 import { signOut } from 'firebase/auth';
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Função utilitária para gerar avatar
@@ -174,6 +175,61 @@ export default function ProfileScreen() {
   const router = useRouter();
   const [tab, setTab] = useState<'posts' | 'feedbacks'>('posts');
   const fadeAnim = useRef(new Animated.Value(1)).current;
+  const [userData, setUserData] = useState<any>(null);
+  const [posts, setPosts] = useState<any[]>([]);
+  const [feedbacks, setFeedbacks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchUserData();
+  }, []);
+
+  const fetchUserData = async () => {
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        router.replace('/welcome');
+        return;
+      }
+
+      // Busca dados do usuário
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      const userData = userDoc.data();
+      setUserData(userData);
+
+      // Busca posts do usuário
+      const postsQuery = query(
+        collection(db, 'posts'),
+        where('authorId', '==', user.uid)
+      );
+      const postsSnapshot = await getDocs(postsQuery);
+      const postsData = postsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        authorAvatar: getAvatarUri(doc.data().authorName)
+      }));
+      setPosts(postsData);
+
+      // Busca feedbacks do usuário
+      const feedbacksQuery = query(
+        collection(db, 'feedbacks'),
+        where('authorId', '==', user.uid)
+      );
+      const feedbacksSnapshot = await getDocs(feedbacksQuery);
+      const feedbacksData = feedbacksSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        authorAvatar: getAvatarUri(doc.data().authorName)
+      }));
+      setFeedbacks(feedbacksData);
+
+    } catch (error) {
+      console.error('Erro ao buscar dados:', error);
+      Alert.alert('Erro', 'Não foi possível carregar seus dados. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogout = async () => {
     Alert.alert(
@@ -201,44 +257,6 @@ export default function ProfileScreen() {
     );
   };
 
-  // Exemplo de dados para o usuário
-  const posts = [
-    {
-      id: '1',
-      authorName: 'Otávio Cunha',
-      authorAvatar: getAvatarUri('Otávio Cunha'),
-      title: 'Post Exemplo',
-      description: 'Compartilhei um novo dashboard!',
-      likes: 10,
-      isLiked: false,
-      comments: 2,
-      topFeedback: {
-        authorAvatar: getAvatarUri('Maria Silva'),
-        content: 'Muito bom!',
-        likes: 3,
-        isLiked: false,
-      },
-    },
-  ];
-  const feedbacks = [
-    {
-      id: '2',
-      authorName: 'Otávio Cunha',
-      authorAvatar: getAvatarUri('Otávio Cunha'),
-      title: 'Teste Lorem Ipsum',
-      description: 'Fiz uma tela de dashboard',
-      likes: 5,
-      isLiked: false,
-      comments: 1,
-      topFeedback: {
-        authorAvatar: getAvatarUri('Super Interessante'),
-        content: 'Super interessante!',
-        likes: 2,
-        isLiked: false,
-      },
-    },
-  ];
-
   const handleTabChange = (nextTab: 'posts' | 'feedbacks') => {
     Animated.timing(fadeAnim, {
       toValue: 0,
@@ -254,15 +272,23 @@ export default function ProfileScreen() {
     });
   };
 
+  if (loading) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>  
       <View style={styles.profileHeaderCentered}>
         <Image
-          source={{ uri: 'https://randomuser.me/api/portraits/men/1.jpg' }}
+          source={userData?.photoURL ? { uri: userData.photoURL } : getAvatarUri(userData?.name || 'Usuário')}
           style={styles.avatarLarge}
         />
-        <Text style={[styles.nameCentered, { color: colors.titlePrimary }]}>Otávio Cunha</Text>
-        <Text style={[styles.companyCentered, { color: colors.textSecondary }]}>Empresa XPTO</Text>
+        <Text style={[styles.nameCentered, { color: colors.titlePrimary }]}>{userData?.nome || 'Usuário'}</Text>
+        <Text style={[styles.companyCentered, { color: colors.textSecondary }]}>{userData?.nomeEmpresa || 'Empresa não informada'}</Text>
         <View style={styles.buttonRow}>
           <TouchableOpacity style={styles.editTextButton}>
             <Text style={[styles.editText, { color: colors.textSecondary }]}>Editar</Text>
@@ -294,16 +320,24 @@ export default function ProfileScreen() {
         {tab === 'posts' ? (
           <>
             <Text style={[styles.sectionTitleCentered, { color: colors.titlePrimary }]}>Meus Posts</Text>
-            {posts.map(post => (
-              <ProfileCard key={post.id} {...post} />
-            ))}
+            {posts.length > 0 ? (
+              posts.map(post => (
+                <ProfileCard key={post.id} {...post} />
+              ))
+            ) : (
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Você ainda não tem posts</Text>
+            )}
           </>
         ) : (
           <>
             <Text style={[styles.sectionTitleCentered, { color: colors.titlePrimary }]}>Meus Feedbacks</Text>
-            {feedbacks.map(feedback => (
-              <ProfileCard key={feedback.id} {...feedback} />
-            ))}
+            {feedbacks.length > 0 ? (
+              feedbacks.map(feedback => (
+                <ProfileCard key={feedback.id} {...feedback} />
+              ))
+            ) : (
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Você ainda não tem feedbacks</Text>
+            )}
           </>
         )}
       </Animated.View>
@@ -393,5 +427,10 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 16,
     fontWeight: '500',
+  },
+  emptyText: {
+    textAlign: 'center',
+    fontSize: 16,
+    marginTop: 20,
   },
 }); 
