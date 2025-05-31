@@ -33,6 +33,8 @@ export default function LoginScreen() {
   const handleLogin = () => {
     if (email && senha) {
       router.replace('/(tabs)');
+    } else {
+      Alert.alert('Erro', 'Por favor, preencha todos os campos.');
     }
   };
 
