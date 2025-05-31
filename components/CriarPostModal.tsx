@@ -256,7 +256,7 @@ export default function CriarPost({
                 placeholder="Comece com 'eu' ou 'eu acho'..."
                 placeholderTextColor={colors.textSecondary}
                 value={descricao}
-                onChangeText={handleDescricaoChange}
+                onChangeText={(text) => setDescricao(text)}
                 multiline
                 maxLength={500}
                 textAlignVertical="top"

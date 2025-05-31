@@ -55,6 +55,12 @@ function RootLayoutNav() {
           }} 
         />
         <Stack.Screen 
+          name="criar-post" 
+          options={{ 
+            headerShown: false,
+          }} 
+        />
+        <Stack.Screen 
           name="modal" 
           options={{ 
             presentation: 'modal',
