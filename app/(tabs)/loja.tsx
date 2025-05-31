@@ -735,7 +735,7 @@ const LojaScreen = () => {
               { 
                 backgroundColor: colors.background,
                 borderColor: colors.border,
-                top: 220, // Posicionado abaixo do botão de ordenação
+                top: 120, // Ajustado para aparecer logo abaixo do botão de ordenação
                 width: '92%',
                 alignSelf: 'center'
               }
@@ -1153,7 +1153,6 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     flex: 1,
-    justifyContent: 'flex-end',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
@@ -1561,6 +1560,13 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
+    position: 'absolute',
+    zIndex: 1000,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
   ordenacaoOption: {
     flexDirection: 'row',

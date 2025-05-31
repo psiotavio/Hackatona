@@ -14,6 +14,7 @@ import * as MediaLibrary from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
 import Header from '../components/Header';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '@/contexts/AuthContext';
 
 // Função utilitária para gerar avatar
 const getAvatarUri = (name: string) => ({
@@ -284,6 +285,7 @@ const profileCardStyles = StyleSheet.create({
 export default function ProfileScreen() {
 	const { colors, themeMode, setThemeMode } = useTheme();
 	const router = useRouter();
+	const { logout } = useAuth();
 	const [tab, setTab] = useState<'posts' | 'feedbacks' | 'public'>('posts');
 	const fadeAnim = useRef(new Animated.Value(1)).current;
 	const qrCodeRef = useRef<any>(null);
@@ -491,7 +493,7 @@ export default function ProfileScreen() {
 				style: "cancel",
 			},
 			{
-				text: "Sair",
+				text: "Sair", 
 				style: "destructive",
 				onPress: async () => {
 					try {

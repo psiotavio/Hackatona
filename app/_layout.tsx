@@ -1,12 +1,14 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { DarkTheme, DefaultTheme, ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { StatusBar } from 'react-native';
 import 'react-native-reanimated';
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
+import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import React from 'react';
 
 export { 
   // Catch any errors thrown by the Layout component.
@@ -20,6 +22,34 @@ export const unstable_settings = {
  
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
+
+// Componente para gerenciar o redirecionamento baseado em autenticação
+function AuthenticationGuard({ children }: { children: React.ReactNode }) {
+  const { user, loading, isAuthenticated } = useAuth();
+  const router = useRouter();
+  const segments = useSegments();
+
+  useEffect(() => {
+    if (loading) return;
+
+    // Verifica se o usuário está na rota de autenticação ou protegida
+    const inAuthGroup = segments[0] === 'welcome' || 
+                       segments[0] === 'login' || 
+                       segments[0] === 'register' ||
+                       segments[0] === 'pendente';
+    
+    // Se não estiver autenticado e não estiver nas rotas de autenticação, redirecionar para welcome
+    if (!isAuthenticated && !inAuthGroup) {
+      router.replace('/welcome');
+    } 
+    // Se estiver autenticado e estiver em uma rota de autenticação, redirecionar para a home
+    else if (isAuthenticated && inAuthGroup) {
+      router.replace('/(tabs)');
+    }
+  }, [isAuthenticated, loading, segments]);
+
+  return <>{children}</>;
+}
 
 function RootLayoutNav() {
   const { currentTheme } = useTheme();
@@ -98,7 +128,11 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider>
-      <RootLayoutNav />
+      <AuthProvider>
+        <AuthenticationGuard>
+          <RootLayoutNav />
+        </AuthenticationGuard>
+      </AuthProvider>
     </ThemeProvider>
   );
 }
