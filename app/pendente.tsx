@@ -19,7 +19,10 @@ export default function PendenteScreen() {
           speed={0.3}
         />
       </View>
-      <Text style={[styles.text, { color: colors.primary }]}>Pendente</Text>
+      <Text style={[styles.title, { color: colors.primary }]}>Cadastro em Análise</Text>
+      <Text style={[styles.description, { color: colors.textSecondary }]}>
+        Seu cadastro está sendo analisado pela nossa equipe. Você receberá um e-mail assim que for aprovado.
+      </Text>
     </View>
   );
 }
@@ -32,11 +35,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   iconContainer: {
-    marginBottom: 24,
+    marginBottom: 32,
   },
-  text: {
-    fontSize: 24,
+  title: {
+    fontSize: 28,
     fontWeight: 'bold',
     textAlign: 'center',
+    marginBottom: 16,
+  },
+  description: {
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 24,
+    maxWidth: width * 0.8,
   },
 }); 

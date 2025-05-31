@@ -37,7 +37,11 @@ export default function RegisterScreen() {
 	};
 
 	const handleRegister = () => {
-		router.replace('/(tabs)');
+		if (tipo === "cliente") {
+			router.replace('/pendente');
+		} else {
+			router.replace('/(tabs)');
+		}
 	};
 
 	return (

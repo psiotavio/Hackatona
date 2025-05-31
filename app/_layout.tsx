@@ -30,7 +30,7 @@ function RootLayoutNav() {
       <StatusBar
         barStyle={currentTheme === 'dark' ? 'light-content' : 'dark-content'}
         backgroundColor={navigationTheme.colors.background}
-      />
+      />  
       <Stack
         screenOptions={{
           headerStyle: {
@@ -39,14 +39,14 @@ function RootLayoutNav() {
           headerTintColor: navigationTheme.colors.text,
           headerTitleStyle: {
             color: navigationTheme.colors.text,
-          },
+          }, 
         }}
       >
         <Stack.Screen name="welcome" options={{ headerShown: false }} />
+        <Stack.Screen name="pendente" options={{ headerShown: false }} />
         <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="register" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="pendente" options={{ headerShown: false }} />
         <Stack.Screen 
           name="modal" 
           options={{ 
