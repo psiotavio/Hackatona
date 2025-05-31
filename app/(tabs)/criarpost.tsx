@@ -3,9 +3,11 @@ import { StyleSheet, View, Text, TouchableOpacity, SafeAreaView } from 'react-na
 import { StatusBar } from 'expo-status-bar';
 import CriarPost from '@/components/CriarPostModal';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '@/contexts/ThemeContext';
 
 export default function CriarPostScreen() {
   const [modalVisible, setModalVisible] = useState(false);
+  const { colors } = useTheme();
 
   const handleSubmit = (data: {
     titulo: string;
@@ -19,20 +21,23 @@ export default function CriarPostScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar style="dark" />
       
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Criar Publicação</Text>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Criar Publicação</Text>
       </View>
       
       <View style={styles.content}>
         <TouchableOpacity 
-          style={styles.createButton}
+          style={[styles.createButton, { 
+            borderColor: colors.border,
+            backgroundColor: colors.background50
+          }]}
           onPress={() => setModalVisible(true)}
         >
-          <Ionicons name="add-circle-outline" size={64} color="#8B4513" />
-          <Text style={styles.createText}>Criar nova publicação</Text>
+          <Ionicons name="add-circle-outline" size={64} color={colors.primary} />
+          <Text style={[styles.createText, { color: colors.textPrimary }]}>Criar nova publicação</Text>
         </TouchableOpacity>
       </View>
 
@@ -48,7 +53,6 @@ export default function CriarPostScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF5E6',
   },
   header: {
     flexDirection: 'row',
@@ -57,12 +61,10 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5D3B3',
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#8B4513',
   },
   content: {
     flex: 1,
@@ -75,16 +77,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 20,
     borderWidth: 2,
-    borderColor: '#E5D3B3',
     borderStyle: 'dashed',
     borderRadius: 16,
     width: '100%',
-    backgroundColor: 'rgba(242, 226, 206, 0.5)',
   },
   createText: {
     marginTop: 16,
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#8B4513',
   },
 }); 

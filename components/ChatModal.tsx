@@ -16,7 +16,8 @@ import {
 import { useTheme } from '@/contexts/ThemeContext';
 import { generateFeedbackQuestions, generateFeedbackAnalysis } from '@/services/openai';
 import { db, auth } from '@/services/firebase/firebase.config';
-import { addDoc, collection, updateDoc, doc, arrayUnion } from 'firebase/firestore';
+import { addDoc, collection, updateDoc, doc, arrayUnion, getDoc } from 'firebase/firestore';
+import { calcularMaximoPontosPorFeedback } from '@/services/firebase/fetchMaxPoints';
 
 interface Message {
   id: string;
@@ -49,9 +50,10 @@ interface ChatModalProps {
   onClose: () => void;
   postContent?: string;
   postId?: string;
+  onFeedbackSubmit?: (feedback: string) => void;
 }
 
-export function ChatModal({ visible, onClose, postContent, postId }: ChatModalProps) {
+export function ChatModal({ visible, onClose, postContent, postId, onFeedbackSubmit }: ChatModalProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -146,21 +148,68 @@ export function ChatModal({ visible, onClose, postContent, postId }: ChatModalPr
     if (!postId || !generatedFeedback) return;
 
     try {
-      const user = auth.currentUser;
-      const feedbackData: Feedback = {
-        id: Date.now().toString(),
-        userId: isAnonimo ? null : user?.uid || null,
-        userName: isAnonimo ? null : user?.displayName || user?.email || null,
-        isAnonimo,
-        content: generatedFeedback,
-        likes: 0,
-        createdAt: new Date(),
-      };
+      if (onFeedbackSubmit) {
+        onFeedbackSubmit(generatedFeedback);
+      } else {
+        const user = auth.currentUser;
+        if (!user) return;
 
-      // Adicionar o feedback ao array de feedbacks do post
-      await updateDoc(doc(db, "feedback", postId), {
-        allFeedbacks: arrayUnion(feedbackData)
-      });
+        // Buscar dados do post para obter o autor
+        const postDoc = await getDoc(doc(db, "feedback", postId));
+        if (!postDoc.exists()) return;
+
+        const postData = postDoc.data();
+        const postAuthorId = postData.userId;
+
+        // Buscar dados do usuário para obter o empresaId
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        if (!userDoc.exists()) return;
+
+        const userData = userDoc.data();
+        const empresaId = userData.tipo === 'empresa' ? user.uid : userData.empresaId;
+
+        if (!empresaId) {
+          throw new Error("Empresa não encontrada");
+        }
+
+        // Calcular pontos baseado no máximo permitido
+        const maximoPorFeedback = await calcularMaximoPontosPorFeedback(empresaId);
+        const pontos = maximoPorFeedback; // Todos os feedbacks recebem o máximo
+
+        // Atualizar pontos do usuário que fez o feedback
+        const currentPoints = userData.pontos || 0;
+        await updateDoc(doc(db, "users", user.uid), {
+          pontos: currentPoints + pontos
+        });
+
+        // Atualizar pontos do autor do post (metade dos pontos)
+        if (postAuthorId && postAuthorId !== user.uid) {
+          const authorDoc = await getDoc(doc(db, "users", postAuthorId));
+          if (authorDoc.exists()) {
+            const authorData = authorDoc.data();
+            const authorCurrentPoints = authorData.pontos || 0;
+            const authorPoints = Math.round(pontos / 2);
+            await updateDoc(doc(db, "users", postAuthorId), {
+              pontos: authorCurrentPoints + authorPoints
+            });
+          }
+        }
+
+        const feedbackData: Feedback = {
+          id: Date.now().toString(),
+          userId: isAnonimo ? null : user?.uid || null,
+          userName: isAnonimo ? null : user?.displayName || user?.email || null,
+          isAnonimo,
+          content: generatedFeedback,
+          likes: 0,
+          createdAt: new Date(),
+        };
+
+        // Adicionar o feedback ao array de feedbacks do post
+        await updateDoc(doc(db, "feedback", postId), {
+          allFeedbacks: arrayUnion(feedbackData)
+        });
+      }
 
       onClose();
     } catch (error) {
