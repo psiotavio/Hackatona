@@ -1,11 +1,21 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable, Image, Dimensions } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
+import { useRouter } from 'expo-router';
 
 const { width } = Dimensions.get('window');
 
 const WelcomeScreen = () => {
   const { colors, currentTheme } = useTheme();
+  const router = useRouter();
+
+  const handleLogin = () => {
+    router.push('/login');
+  };
+
+  const handleRegister = () => {
+    router.push('/register');
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>  
@@ -17,19 +27,25 @@ const WelcomeScreen = () => {
 
       <View style={styles.buttonGroup}>
         {/* Botão Login */}
-        <Pressable style={({ pressed }) => [
-          styles.button,
-          styles.buttonFilled,
-          { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 }
-        ]}>
+        <Pressable 
+          style={({ pressed }) => [
+            styles.button,
+            styles.buttonFilled,
+            { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 }
+          ]}
+          onPress={handleLogin}
+        >
           <Text style={[styles.buttonText, { color: colors.background }]}>Fazer Login</Text>
         </Pressable>
         {/* Botão Criar Conta */}
-        <Pressable style={({ pressed }) => [
-          styles.button,
-          styles.buttonOutlined,
-          { borderColor: colors.primary, opacity: pressed ? 0.85 : 1 }
-        ]}>
+        <Pressable 
+          style={({ pressed }) => [
+            styles.button,
+            styles.buttonOutlined,
+            { borderColor: colors.primary, opacity: pressed ? 0.85 : 1 }
+          ]}
+          onPress={handleRegister}
+        >
           <Text style={[styles.buttonText, { color: colors.primary }]}>Criar Conta</Text>
         </Pressable>
       </View>
