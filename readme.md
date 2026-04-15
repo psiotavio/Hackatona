@@ -1,114 +1,129 @@
-# 📱 Feedin
+📱 Feedin
+Feedin is a mobile application that makes the feedback process between coworkers or team members simpler, more fun, and rewarding.
 
-**Feedin** é um aplicativo mobile que torna o processo de feedback entre colegas de empresa ou time mais simples, divertido e recompensador.
+🚀 Installation
+Prerequisites
 
-## 🚀 Instalação
+Node.js (version 18 or higher)
 
-### Pré-requisitos
-- Node.js (versão 18 ou superior)
-- npm ou yarn
-- Expo CLI (`npm install -g expo-cli`)
-- Um dispositivo móvel com o aplicativo Expo Go instalado (disponível na [App Store](https://apps.apple.com/app/apple-store/id982107779) ou [Google Play](https://play.google.com/store/apps/details?id=host.exp.exponent))
+npm or yarn
 
-### Passos para instalação
+Expo CLI (npm install -g expo-cli)
 
-1. Clone o repositório:
-```bash
-git clone https://github.com/seu-usuario/feedin.git
+A mobile device with the Expo Go app installed (available on the App Store or Google Play)
+
+Installation Steps
+
+Clone the repository:
+
+Bash
+git clone https://github.com/your-username/feedin.git
 cd feedin
-```
+Install dependencies:
 
-2. Instale as dependências:
-```bash
+Bash
 npm install
-# ou
+# or
 yarn install
-```
+Configure environment variables:
 
-3. Configure as variáveis de ambiente:
-- Crie um arquivo `.env` na raiz do projeto
-- Adicione suas credenciais do Firebase e OpenAI:
-```
-FIREBASE_API_KEY=sua_chave_api
-FIREBASE_AUTH_DOMAIN=seu_dominio
-FIREBASE_PROJECT_ID=seu_projeto_id
-FIREBASE_STORAGE_BUCKET=seu_bucket
-FIREBASE_MESSAGING_SENDER_ID=seu_sender_id
-FIREBASE_APP_ID=seu_app_id
-OPENAI_API_KEY=sua_chave_api_openai
-```
+Create a .env file in the project root
 
-4. Inicie o aplicativo:
-```bash
+Add your Firebase and OpenAI credentials:
+
+FIREBASE_API_KEY=your_api_key
+FIREBASE_AUTH_DOMAIN=your_domain
+FIREBASE_PROJECT_ID=your_project_id
+FIREBASE_STORAGE_BUCKET=your_bucket
+FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+FIREBASE_APP_ID=your_app_id
+OPENAI_API_KEY=your_openai_api_key
+Start the application:
+
+Bash
 npm start
-# ou
+# or
 yarn start
-```
+Scan the QR Code that appears in the terminal with:
 
-5. Escaneie o QR Code que aparecerá no terminal com:
-- iOS: Câmera do iPhone
-- Android: App Expo Go
+iOS: iPhone Camera
 
-### BrainStorm & Idéia
+Android: Expo Go App
 
-Iniciamos um processo de **brainstorming em grupo**, onde levantamos ideias, soluções e funcionalidades possíveis. Durante esse momento criativo, mapeamos as seguintes dores:
+Brainstorming & Idea
 
-- Falta de **engajamento** nas ferramentas formais de feedback;
-- Dificuldade dos colaboradores em **dar e receber feedbacks** de forma natural;
-- Pouca valorização de conquistas e tarefas do dia a dia;
-- Ausência de **incentivos e reconhecimento constante** entre os colegas.
+We began with a group brainstorming process, where we gathered ideas, solutions, and possible features. During this creative phase, we mapped the following pain points:
 
-A partir disso, nasceu a ideia do **Feedin**: um app mobile moderno e gamificado que estimula o feedback espontâneo entre colegas por meio de uma rede social interna, recompensas por participação e uma IA que auxilia na construção de mensagens mais descontraídas e humanas.
+Lack of engagement in formal feedback tools;
 
-![image](https://github.com/user-attachments/assets/b6f06850-3c85-484a-881b-236db5677e59)
-(Foto do quadro que usamos para mapear o fluxo do app)
+Difficulty for employees to give and receive feedback naturally;
 
-## 📲 Como funciona
+Little appreciation for daily achievements and tasks;
 
-### 👥 Acesso à rede
-- O perfil **empresa (admin)** é o responsável por aprovar as solicitações dos colaboradores que desejam ingressar na rede da empresa.
-- Após aprovação, o colaborador passa a interagir com os colegas por meio de postagens e feedbacks.
+Absence of constant incentives and recognition among colleagues.
 
-### 🧵 Tipos de postagens
-- **Feedback Direto**: o usuário escreve um feedback público para um colega específico.
-- **Post de Tarefa/Realização**: o usuário compartilha algo que fez, buscando receber feedbacks construtivos.
+Based on this, the idea for Feedin was born: a modern, gamified mobile app that encourages spontaneous feedback between colleagues through an internal social network, participation rewards, and an AI that assists in drafting more casual and human messages.
 
-### 🎁 Recompensas e Pontos
-- Os usuários acumulam pontos ao:
-  - Criar postagens (feedbacks ou realizações)
-  - Comentar com feedbacks nos posts de colegas
-- Os pontos podem ser trocados por recompensas que a empresa disponibiliza em uma **loja interna** do app.
+(Photo of the board used to map the app flow)
 
-### 🤖 IA para apoio no feedback
-- Ao escrever um feedback, o usuário pode contar com o auxílio de uma **Inteligência Artificial**, que ajuda a tornar o texto mais leve, amigável e eficaz.
-- Utilizada para fazer esse auxilio de forma totalmente descontraída.  
+📲 How It Works
+👥 Network Access
 
-## ⚙️ Tecnologias Utilizadas
+The company (admin) profile is responsible for approving requests from employees who wish to join the company network.
 
-O Feedin é desenvolvido com uma stack moderna, que visa simplicidade, escalabilidade e boa experiência para o usuário final.
+After approval, employees can interact with colleagues through posts and feedback.
 
-### 🧠 Frontend Mobile
+🧵 Post Types
 
-- **[React Native](https://reactnative.dev/)** com **[Expo](https://expo.dev/)**  
-  Interface mobile nativa com desempenho e experiência fluida.
-  
-- **TypeScript (TSX)**  
-  Tipagem estática para maior segurança, legibilidade e manutenção do código.
+Direct Feedback: The user writes public feedback for a specific colleague.
 
-- **StyleSheet API / Styled Components**  
-  Estilização flexível e componentizada.
+Task/Achievement Post: The user shares something they have accomplished to receive constructive feedback.
 
-### 🔥 Backend e Banco de Dados
+🎁 Rewards and Points
 
-- **[Firebase](https://firebase.google.com/)**  
-  Plataforma completa usada para:
-  - **Autenticação de usuários**
-  - **Firestore** como banco de dados em tempo real
-  - **Storage** para upload de arquivos e imagens
-  - **Cloud Functions** como backend (API) para lógica de negócio e integrações
+Users accumulate points by:
 
-### 🤖 Inteligência Artificial
+Creating posts (feedbacks or achievements)
 
-- **[OpenAI API](https://platform.openai.com/docs)**  
-  Utilizada para auxiliar os usuários na criação de feedbacks mais descontraídos, claros e empáticos.  
-  A IA analisa o conteúdo e sugere melhorias mantendo o tom humano e construtivo.
+Commenting with feedback on colleagues' posts
+
+Points can be exchanged for rewards provided by the company in the app's internal store.
+
+🤖 AI Feedback Support
+
+When writing feedback, users can rely on Artificial Intelligence to help make the text lighter, friendlier, and more effective.
+
+It is used to provide this assistance in a completely casual and helpful manner.
+
+⚙️ Technologies Used
+Feedin is developed with a modern stack focused on simplicity, scalability, and a great end-user experience.
+
+🧠 Mobile Frontend
+
+React Native with Expo
+Native mobile interface with fluid performance and experience.
+
+TypeScript (TSX)
+Static typing for greater security, readability, and code maintenance.
+
+StyleSheet API / Styled Components
+Flexible and componentized styling.
+
+🔥 Backend and Database
+
+Firebase
+Complete platform used for:
+
+User Authentication
+
+Firestore as a real-time database
+
+Storage for file and image uploads
+
+Cloud Functions as a backend (API) for business logic and integrations
+
+🤖 Artificial Intelligence
+
+OpenAI API
+Used to assist users in creating more casual, clear, and empathetic feedback.
+The AI analyzes the content and suggests improvements while maintaining a human and constructive tone.
